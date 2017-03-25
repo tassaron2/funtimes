@@ -1,0 +1,23 @@
+tilemap
+###################
+#                 #
+#                 #
+#           C     #
+#                 #
+#                 #
+#                 
+#    B            
+#    B            #
+#                 #
+#                 #
+#                 #
+#          @      #
+#                 #
+#                 #
+##########WW#######
+/tilemap
+legend
+    C = chair
+    B = desk
+    W = window
+/legend

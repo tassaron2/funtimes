@@ -1,52 +1,27 @@
-#!/usr/bin/python3
-# main.py
-# THIS DOES EVERYTHING!
+#!/usr/bin/env python3
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+#
+# main.py for an example game
+# last modified 2017/03/25
+# created 2017/03/23 by tassaron
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+#
+# Licence would go here if anyone cared
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+import os
+import funplayer
 
-from collections import deque
-from sys import argv
+# not used yet but probably
+HOME = os.getenv("HOME")
+SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
-from predicaments import Predicament
-from funtoolkit import clear, playSound, anykey, quit, load
-from settings import historycache
-from savedata import profile, prefs
-
-def main(start='title'):
-    load()
-    # if playSound doesn't work, tell them the game will be mute
-    if not playSound and not prefs['soundOff']:
-        Predicament('nosound').play()
-    currentPredicament = Predicament(start)
-    # prevPredicaments is a queue. after each new predicament, append it.
-    # it holds past Predicaments. it does not hold strings
-    prevPredicaments = deque(maxlen=historycache)
-    while True:
-        nextPredicament = currentPredicament.play()
-        if nextPredicament == currentPredicament.name:
-            # if this is the same predicament, play it again
-            continue
-        elif nextPredicament == '\x7F':
-            # go back to last predicament
-            try:
-                currentPredicament = prevPredicaments.pop()
-            except IndexError:
-                clear()
-                anykey("No more history available.")
-            continue
-        # store this predicament on the list of previous predicaments
-        prevPredicaments.append(currentPredicament)
-        currentPredicament = Predicament(nextPredicament)
+def main():
+    funplayer.init()
+    funplayer.play(predname='entry')
+    funplayer.main()
 
 if __name__ == '__main__':
-    if len(argv) > 1:
-        for predicament in argv[1:]:
-            try:
-                main(predicament)
-            except KeyboardInterrupt:
-                quit(True)
-    else:
-        try:
-            main()
-        except KeyboardInterrupt:
-            #print("QITTTTING!!!!")
-            #raise SystemExit
-            quit(True)
+    main()
+
