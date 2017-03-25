@@ -3,6 +3,4 @@ __pycache__
 *.geany
 *.sav
 funtimes.out
-data/save.dat
-plans.txt
-data/maps/*-ascii.map
+todo

@@ -59,8 +59,8 @@ class Predicament:
         self.actionGoto = []
         # arrow label and goto lists use this sequence:
         arrowListSequence = ('up', 'down', 'left', 'right')
-        self.arrowLabel = []
-        self.arrowGoto = []
+        self.arrowLabel = ['^', 'v', '<', '>']
+        self.arrowGoto = [None, None, None, None]
 
         #=~=~=~ OPTIONAL ATTRIBUTES
         # parent which this Predicament inherits attributes from
@@ -84,6 +84,7 @@ class Predicament:
             open(os.path.join(PREDDIR, filename), 'r')
         except KeyError:
             # if the predicament isn't in our master dictionary...
+            # TODO: this error does not raise when the pred doesn't exist
             raise BadPredicamentError(3, self.name)
         except:
             # if the file can't be opened...
@@ -275,11 +276,13 @@ class Predicament:
                     try:
                         label, goto = value.split('->')
                     except ValueError:
-                        raise BadPredicamentError(23, self.name, line)
+                        label, goto = None, value
                     for i, d in enumerate(arrowListSequence):
                         if key == d:
-                            self.arrowLabel[i] = [label.strip()]
-                            self.arrowGoto[i] = [goto.strip()]
+                            if label:
+                                # change label from default if one is set
+                                self.arrowLabel[i] = label.strip()
+                            self.arrowGoto[i] = goto.strip()
                             continue
                 else:
                     raise BadPredicamentError(14, filename, self.name,
@@ -295,9 +298,9 @@ class Predicament:
     def __str__(self):
         return '< Predicament %s: %s >' % (self.name, self._text)
 
+    # 2017/03/25 using properties to stop other modules breaking when this changes
     @property
     def actions(self):
-        # 2017/03/25 using properties to stop other modules breaking when this changes
         return [(label, goto) for label, goto in zip(self.actionLabel, self.actionGoto)]
 
     @property

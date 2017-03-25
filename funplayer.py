@@ -20,6 +20,7 @@ class Funplayer():
     # does computation of data returned from Funtimes (parser) module
     # uses GTK+ Funwindow object to draw what it computes
     # flexible so a non-gtk window could be used if it has the same interface
+    # e.g. easier to make it work in terminal or on a webpage
     def __init__(self, predname):
         # each instance only plays 1 predicament
         self.pred = funtimes.Predicament(predname)
@@ -29,10 +30,15 @@ class Funplayer():
         window.clear()
         # knock the boxes over!!
 
+        # make the map area
         # make the text area
         for line in self.pred.text:
             window.text.add(line)
 
+        # make the arrow buttons
+        for label, goto in self.pred.arrows:
+            # disabled directions have None as goto
+            window.arrows.add(label, goto)
         # make the action buttons
         for label, goto in self.pred.actions:
             window.actions.add(label, goto)
@@ -115,16 +121,19 @@ class Body(Gtk.Box):
         topBox.pack_start(self.mapBox, False, False, 0)
         topBox.pack_start(self.textBox, False, False, 0)
         # make the low box
-        self.arrowButtons = Gtk.Box()
+        self.arrowButtons = ActionButtons()
         self.actionButtons = ActionButtons()
         lowBox.pack_start(self.arrowButtons, False, False, 0)
         lowBox.pack_start(self.actionButtons, False, False, 0)
 
 class ActionButtons(Gtk.Box):
-    # area of the window where buttons go for actions and arrows
+    # area of the window where buttons go for actions
     def add(self, label, gotoPred):
         button = Gtk.Button(label=label)
-        button.connect('clicked', goto, gotoPred)
+        if gotoPred:
+            button.connect('clicked', goto, gotoPred)
+        else:
+            button.set_sensitive(False)
         self.pack_start(button, False, False, 0)
 
 class TextBox(Gtk.Box):
