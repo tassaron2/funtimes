@@ -15,13 +15,13 @@ import funplayer
 
 # not used yet but probably
 HOME = os.getenv("HOME")
+# path for this game's resources (not funtimes resources)
+# currently nonexistent because the game is too simple/unfinished
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
 def main():
-    funplayer.init()
-    funplayer.play(predname='entry')
+    funplayer.play('entry')
     funplayer.main()
 
 if __name__ == '__main__':
     main()
-

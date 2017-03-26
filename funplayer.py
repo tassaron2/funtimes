@@ -7,23 +7,32 @@
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
+# Funplayer object parses Funtimes Predicament objects
+# global functions provide access to Funplayer
+# uses GTK+ Funwindow object to draw what it computes
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+#
 # Licence would go here if anyone cared
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import funtimes
 
-def init():
-    global window
-    window = Funwindow()
+def play(predname='start'):
+    global predicaments
+    if predname not in predicaments:
+        # make a Funplayer for this predicament if there is none
+        predicaments[predname] = Funplayer(predname)
+    predicaments[predname].play()
 
 class Funplayer():
-    # does computation of data returned from Funtimes (parser) module
-    # uses GTK+ Funwindow object to draw what it computes
+    # does computation of Predicament objects created by the parser
     # flexible so a non-gtk window could be used if it has the same interface
     # e.g. easier to make it work in terminal or on a webpage
     def __init__(self, predname):
         # each instance only plays 1 predicament
         self.pred = funtimes.Predicament(predname)
+        self._tick=0
 
     def play(self):
         # make some new boxes
@@ -31,14 +40,20 @@ class Funplayer():
         # knock the boxes over!!
 
         # make the map area
+        window.tilemap.create(self.pred.tilemap)
         # make the text area
         for line in self.pred.text:
             window.text.add(line)
+
+        # tick to get any extra text or actions
+        self.tick()
 
         # make the arrow buttons
         for label, goto in self.pred.arrows:
             # disabled directions have None as goto
             window.arrows.add(label, goto)
+        # make a link back to this predicament ('Do nothing')
+        window.arrows.add('Do nothing', self.pred.name)
         # make the action buttons
         for label, goto in self.pred.actions:
             window.actions.add(label, goto)
@@ -47,8 +62,10 @@ class Funplayer():
         window.draw()
 
     def tick(self):
-        # a moment passes within the same Predicament
-        pass
+        # our tick tracks time passage in this pred only
+        # the window tick should measure total game ticks
+        self._tick+=1
+        window.tick()
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -59,19 +76,16 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
-def play(predname='start'):
-    predicament = Funplayer(predname)
-    predicament.play()
-
-# based on a batch file therefore needs goto ;)
-def goto(*args):
-    # the last argument is the new predname
-    # anything else is a GTK object
-    newpred = args[-1]
-    play(newpred)
-
 def main():
     Gtk.main()
+
+# based on a batch file therefore needs goto ;)
+# actually we need this to catch widgets passed from GTK
+# so they don't interfere with Funplayer's ignorance of GTK
+def goto(*args):
+    # the last argument is the new predname
+    newpred = args[-1]
+    play(newpred)
 
 class Funwindow(Gtk.Window):
     def __init__(self):
@@ -84,18 +98,26 @@ class Funwindow(Gtk.Window):
         self.body = Body()
         self.add(self.body)
         self.connect("delete-event", Gtk.main_quit)
+        self._tick=0
 
+    #=~=~=~=~=~ FUNCTIONS FUNPLAYER USES
     def clear(self):
         # empty the window contents
         self.remove(self.body)
         self.body = Body()
         self.add(self.body)
 
+    def tick(self):
+        self._tick+=1
+
     def draw(self):
         self.show_all()
 
     #=~=~=~=~=~ PROPERTIES FUNPLAYER USES
     #=~=~ Each should be an object with properties genericizing its actions
+    @property
+    def tilemap(self):
+        return self.body.mapBox
     @property
     def text(self):
         return self.body.textBox
@@ -117,7 +139,7 @@ class Body(Gtk.Box):
         self.pack_start(midBox, False, False, 0)
         self.pack_start(lowBox, False, False, 0)
         # make the top box
-        self.mapBox = Gtk.Box(); self.textBox = TextBox()
+        self.mapBox = MapBox(); self.textBox = TextBox()
         topBox.pack_start(self.mapBox, False, False, 0)
         topBox.pack_start(self.textBox, False, False, 0)
         # make the low box
@@ -140,10 +162,27 @@ class TextBox(Gtk.Box):
     def __init__(self):
         super().__init__()
         self.set_orientation(Gtk.Orientation.VERTICAL)
+        self.set_border_width(6)
 
     # text is printed here
     def add(self, item):
         self.pack_start(Gtk.Label(item), False, False, 0)
+
+class MapBox(Gtk.Grid):
+    def __init__(self):
+        super().__init__()
+
+    # makes a grid of tiles using a list of map rows
+    def create(self, tilemap):
+        if tilemap:
+            for row, line in enumerate(tilemap):
+                for col, char in enumerate(line):
+                    self.attach(Tile(char), col, row, 1, 1)
+
+class Tile(Gtk.Label):
+    # TODO: look up a tile for this character
+    def __init__(self, char):
+        super().__init__(char)
 
 class OKWindow(Gtk.Dialog):
     # a window that returns nothing, just shows a message and goes away
@@ -155,7 +194,11 @@ class OKWindow(Gtk.Dialog):
         self.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK)
         self.show_all()
 
+# GLOBALS
+window = Funwindow()
+predicaments = {}
+
 if __name__=='__main__':
-    funplayer.init() # create window
+    # EXAMPLE OF HOW TO USE THIS MODULE IN OTHER SCRIPT
     funplayer.play() # play 1st pred so window is not empty
     funplayer.main() # get input (loops forever)

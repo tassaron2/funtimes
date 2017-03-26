@@ -72,9 +72,9 @@ class Predicament:
         # list or string variable that will output to 'funtimes.out'
         self.write = None
         # MAP DATA
-        # name of file containing tilemap
+        # list of lines of tiles to draw for the map
         self.predmap = None
-        # name displayed over tilemap
+        # name displayed over the map
         self.mapname = None
 
 
@@ -240,9 +240,6 @@ class Predicament:
                     # add each line of text onto the prev line of text
                     self._text.append(value)
                     continue
-                elif key == 'parent':
-                    self.parent = value.strip()
-                    continue
                 elif key == 'action':
                     try:
                         action, goto = value.split('->')
@@ -267,10 +264,12 @@ class Predicament:
                     self.write = value.strip()
                     continue
                 elif key == 'map':
-                    self.predmap = value.strip()
+                    self.predmap = readMap(fp, self.name, line)
                     continue
                 elif key == 'name':
                     self.mapname = value.strip()
+                    continue
+                elif key == 'entity':
                     continue
                 elif key in ('up', 'down', 'left', 'right'):
                     try:
@@ -311,88 +310,32 @@ class Predicament:
     def text(self):
         return [replaceVariables(line) for line in self._text]
 
-    """
-    def drawMap(self):
-        with open(mapdir + self.predmap + '.map',
-                  'r', encoding='utf-8') as currentMap:
-            # find out the longest line so we can centre according to it
-            longestLine = 0
-            busy = True
-            for line in currentMap:
-                # don't count legend lines, which aren't relevant to map size
-                if busy and line.strip()=="start legend":
-                    busy = False
-                if line.strip()=="end legend":
-                    busy = True
-                if busy:
-                    if len(line) > longestLine:
-                        longestLine = len(line)
-        with open(mapdir + self.predmap + '.map',
-                  'r', encoding='utf-8') as currentMap:
-            # print the map's name over the map if it exists
-            if self.mapname:
-                self.mapname = replaceVariables(self.mapname).upper()
-                # centre it over the map
-                sys.stdout.write \
-                (' ' * int((lineLength - len(self.mapname) - 1) / 2))
-                print(self.mapname)
-            busy = False
-            for line in currentMap:
-                # only read the tilemap
-                if not busy and line.strip()=="start tilemap":
-                    busy = True
-                    continue
-                elif line.strip()=="end tilemap":
-                    busy = False
-                    continue
-                if busy:
-                    sys.stdout.write(' ' * int((lineLength - longestLine) / 2))
-                    try:
-                        print(line, end='')
-                    except UnicodeEncodeError:
-                        if not os.path.isfile(mapdir +self.predmap + '-ascii.map'):
-                            createAsciiMap(self.predmap)
-                        line = createAsciiLine(line)
-                        print(line, end='')
-            print()
+    @property
+    def tilemap(self):
+        return self.predmap
 
-def createAsciiMap(predmap):
-    # generates an ascii version of the map file, so it doesn't need to
-    # do a million replace()s every time we come back to the same map
-    try:
-        with open(mapdir + predmap + '.map',
-              'r', encoding='utf-8') as unicodeMap:
-            with open(mapdir + predmap + '-ascii.map',
-                      'w', encoding='utf-8') as asciiMap:
-                for line in unicodeMap:
-                    print(createAsciiLine(line), file=asciiMap, end='')
-    except IOError:
-        print("\nproblem creating or accessing:\n" + mapdir + predmap +
-              "-ascii.map\nthis is a p. big deal, tbh")
-        anykey()
-        quit()
 
-def createAsciiLine(line):
-    unicodeWalls = ['\u2550', '\u2551', '\u2554',
-                    '\u2557', '\u255A', '\u255D'] # '#'
-    unicodeVertLines = ['\u2502'] # '|'
-    unicodeHoriLines = ['\u2500'] # '_'
-    unicodeDashes = ['\u254E', '\u254C'] # '.'
-    unicodeCorners = ['\u250C', '\u2518', '\u2514', '\u2510'] # removed
-    for character in unicodeWalls:
-        line = line.replace(character, '#')
-    for character in unicodeVertLines:
-        line = line.replace(character, '|')
-    for character in unicodeHoriLines:
-        line = line.replace(character, '_')
-    for character in unicodeDashes:
-        line = line.replace(character, '.')
-    for character in unicodeCorners:
-        line = line.replace(character, ' ')
-    return line
-"""
+def readMap(fp, name, line):
+    # fp and line are things we need to iterate through the pred file
+    # name is something we only need to raise errors, to help debug
+    maplist = []
+
+    while line:
+        # move down 1 line
+        line = fp.readline()
+        # stop reading if we encounter an end-block
+        # TODO: if no end-block it will read entire file & cause epic problems ;p
+        if line.find('/map') != -1:
+            break
+        else:
+            # if the map isn't done yet, add this line onto the map
+            maplist.append(line.strip())
+
+    return maplist
+
 
 def doIf(fp, name, line):
+    # code from 2013
     # figures out whether to read conditional stuff in pred definitions
     # first, parse the line itself to get key and value
 
@@ -430,6 +373,7 @@ def doIf(fp, name, line):
         except NameError:
             # it's not a comparable value.
             # maybe it's a variable!!
+            # TODO: DEFINITELY BROKEN
             if ( value[1:].strip() in Predicament.variables and
                 type(profile[value[1:].strip()]) in (int, float) ):
                 # aha! we're probably comparing profile stuff

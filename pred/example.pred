@@ -42,18 +42,79 @@ predicament = walkaround1
 /predicament
 
 predicament = walkaround2
-    text = room 2
+    map =
+    #######   ######
+    C              #
+    #              #
+    #         C    #
+    #              #
+    #              #
+    #
+    #    B
+    #    B         #
+    #              #
+    #              #
+    #              #
+    #        @     #
+    #              #
+    #              #
+    ##  ####WW######
+    /map
+    entity = C -> chair
+    entity = B -> desk
+    entity = W -> window
+
+    text = This is Room 2.
+
     right = walkaround1
     up = walkaround2N
     down = walkaround2S
 /predicament
 
 predicament = walkaround2N
+    map =
+    ################
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #######   ######
+    /map
+
     down = walkaround2
     text = north
 /predicament
 
 predicament = walkaround2S
+    map =
+    ##  ####WW######
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    ################
+    /map
+
     up = walkaround2
     text = south
 /predicament
