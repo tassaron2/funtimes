@@ -34,12 +34,13 @@ class Predicament:
     when creating a Predicament, pass in a string holding the name.
     the constructor will try to find this pred's data in the PREDDIR
     by checking the predicaments dictionary.
-    to play this predicament, use play() in player.py
+    to play this predicament, use play() in funplayer.py
     """
 
     # pointless class variable: number of generated Predicaments
     numPredicaments = 0
     # dictionary of pred variables
+    # TODO: this should start empty ;P
     variables = { 'progress' : 0,
                   'girlname' : ''
                 }
@@ -86,23 +87,11 @@ class Predicament:
 
 
         #=~=~=~ TRY TO OPEN THE PRED FILE CONTAINING OUR PREDICAMENT
-        try:
-            filename, lineNo = predicaments[self.name]
-            open(os.path.join(PREDDIR, filename), 'r')
-        except KeyError:
-            # if the predicament isn't in our master dictionary...
-            # TODO: this error does not raise when the pred doesn't exist
-            raise BadPredicamentError(3, self.name)
-        except:
-            # if the file can't be opened...
-            raise BadPredicamentError(15, filename, self.name)
+        filename, lineNo = tryToOpen(PREDDIR, 'pred', name)
 
         with open(os.path.join(PREDDIR, filename), 'r') as fp:
             # find line in file where this predicament begins...
             busy = findStartPoint(fp, lineNo, 'predicament', self.name)
-            if not busy:
-                # we should be busy reading a predicament by this point
-                raise BadPredicamentError(5, filename, self.name)
 
             # finally, we start actually assigning the data
             global readingIfLevel, tempIfLevel
@@ -113,106 +102,11 @@ class Predicament:
             while line:
                 line = getNonBlankLine(fp)
                 #=~  FIRST DO STUFF WITHOUT = IN IT
-                #=~=~=~=~ '/' BLOCK TERMINATORS
                 if line.find("/predicament") == 0:
                     busy = False
                     break
-                elif line.find("/if") == 0:
-                    if readingIfLevel > 0:
-                        readingIfLevel -= 1
-                        continue
-                    raise BadPredicamentError(12, filename, self.name)
-                #=~=~=~=~ IF
-                elif line.strip().startswith("if "):
-                    if doIf(fp, self.name, line):
-                        # if the condition is true, read normally
-                        readingIfLevel += 1
-                        continue
-                    # if the condition isn't true,
-                    # discard lines until we reach end if
-                    while readingIfLevel < tempIfLevel:
-                        nextline = getNonBlankLine(fp)
-                        if nextline.startswith("/if"):
-                            tempIfLevel -= 1
-                        elif nextline.startswith("if "):
-                            tempIfLevel += 1
-                        elif nextline.find("/predicament") == 0:
-                            raise BadPredicamentError(13, self.name)
-                    continue
-                #=~=~=~=~ SET
-                # TODO: needs much cleanup to handle strings/ints/bools more logically
-                elif line.strip().startswith("set "):
-                    try:
-                        key, value = line.split('=')
-                    except ValueError:
-                        try:
-                            key, value = line.split(' to ')
-                        except ValueError:
-                            raise BadPredicamentError(31, filename, self.name,
-                                                      line)
-                    # strip out the 'set ' part
-                    key = key[4:].strip()
-                    value = value.strip()
-                    # store it in the Predicament class dictionary
-                    try:
-                        if value == 'random':
-                            Predicament.variables[key.strip()] = random.randint(1,100)
-                            continue
-                        elif type(Predicament.variables[key]) in (int, float):
-                            Predicament.variables[key.strip()] = int(value)
-                            continue
-                        else:
-                            Predicament.variables[key.strip()] = value
-                            continue
-                    except KeyError:
-                        # nonexistant variable
-                        # TODO: create nonexistent variables?
-                        raise BadPredicamentError(21, self.name, key.strip())
-                elif line.strip().startswith("add "):
-                    try:
-                        # variable assignment literally backwards, because that's more fun
-                        value, key = line[4:].split('to')
-                        value = value.strip()
-                        key = key.strip()
-                    except ValueError:
-                        raise BadPredicamentError(35, filename,
-                                                  self.name, line)
-                    # make sure variable exists
-                    if key not in Predicament.variables.keys():
-                        raise BadPredicamentError(10, filename, self.name,
-                                                  line, key, 'profile')
-                    # make sure it's a number
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        raise BadPredicamentError(37, filename, self.name,
-                                                  line, value)
-                    if type(Predicament.variables[key]) == int:
-                        Predicament.variables[key] += value
-                    else:
-                        raise BadPredicamentError(38, filename, self.name,
-                                                  line, key, 'add to')
-                    continue
-                elif line.strip().startswith("subtract "):
-                    try:
-                        # also literally backwards, because that's more fun
-                        value, key = line[9:].split('from')
-                        value = value.strip()
-                        key = key.strip()
-                    except ValueError:
-                        raise BadPredicamentError(36, filename, self.name,
-                                                  line)
-                    if key not in Predicament.variables.keys():
-                        raise BadPredicamentError(10, filename, self.name,
-                                                  line, key, 'profile')
-                    if type(value) != int:
-                        raise BadPredicamentError(37, filename, self.name,
-                                                      line, value)
-                    if type(Predicament.variables[key]) == int:
-                        Predicament.variables[key] -= value
-                    else:
-                        raise BadPredicamentError(38, filename, self.name,
-                                                  line, key, 'subtract from')
+                if doWeirdLines(fp, filename, self.name, line):
+                    # if this returns True then it did the parsing work for us
                     continue
 
                 #=~=~=~=~ NORMAL STUFF THAT USES =
@@ -230,7 +124,7 @@ class Predicament:
                     if value and value[0] == ' ':
                         value = value[1:]
                     # add each line of text onto the prev line of text
-                    self._text.append(value)
+                    self._text.append(replaceVariables(value))
                     continue
                 elif key == 'action':
                     try:
@@ -314,7 +208,9 @@ class Predicament:
 
     @property
     def text(self):
-        return [replaceVariables(line) for line in self._text]
+        # if we do replaceVariables() at this stage, it won't expand variables
+        # until the pred is interpreted by funplayer. which could be a feature
+        return self._text
 
     @property
     def tilemap(self):
@@ -336,10 +232,122 @@ class Predicament:
 
 
 class Dude:
+    '''
+Dudes are constructed from .dude files using a dudename which is
+looked up in the global dudes dictionary to find the filename & lineNo
+Dudes have events defined within 'tick' blocks that should be executed
+on a certain 'tick' of a predicament, or every tick.
+The first 'play' of a Predicament is the first tick, and so on
+    '''
+    numDudes = 0
     def __init__(self, name):
+        Dude.numDudes+=1
+
+        # name used to generate this dude
         self.name = name
+        self.text = []
         # list of ticks this Dude wants in on
-        self.ticks=[]
+        self.ticks = []
+
+        #=~=~=~ TRY TO OPEN THE DUDE FILE CONTAINING OUR DUDE
+        filename, lineNo = tryToOpen(DUDEDIR, 'dude', name)
+
+        with open(os.path.join(DUDEDIR, filename), 'r') as fp:
+            # find line in file where this dude is...
+            busy = findStartPoint(fp, lineNo, 'dude', self.name)
+
+            # finally, we start copy-pasting code
+            global readingIfLevel, tempIfLevel
+            readingIfLevel = 0
+            tempIfLevel = 0
+            line=True
+            # since 0 is not a real tick, ticks with this variable
+            # set to 0 are actually executed on EVERY tick
+            readingTick=0
+            while line:
+                # if reading a new tick, append to list of ticks this dude wants in on
+                if readingTick != 0 and readingTick not in self.ticks:
+                    self.ticks.append(readingTick)
+                    print(self.ticks)
+                line = getNonBlankLine(fp)
+                #=~  FIRST DO STUFF WITHOUT = IN IT
+                if line.find("/dude") == 0:
+                    busy = False
+                    break
+                elif line.find("/tick") == 0:
+                    readingTick=0
+                    continue
+                if doWeirdLines(fp, filename, self.name, line, readingTick):
+                    # if this returns True then it did the parsing work for us
+                    continue
+
+                #=~=~=~=~ NORMAL STUFF THAT USES =
+                try:
+                    key, value = line.split('=')
+                except ValueError:
+                    raise BadPredicamentError(18, filename, self.name, line)
+                key = key.rstrip().lower()
+                if key == 'dude':
+                    # we're in a new dude without... ew...
+                    raise BadPredicamentError(4, filename, self.name)
+                elif key == 'tick':
+                    try:
+                        readingTick = int(value.strip())
+                        continue
+                    except TypeError:
+                        raise BadPredicamentError(43, filename, self.name, value.strip())
+                elif key == 'text':
+                    # remove only the first space if any
+                    if value and value[0] == ' ':
+                        value = value[1:]
+                    # add each line of text onto the prev line of text
+                    self.text.append(replaceVariables(value))
+                    continue
+
+def doWeirdLines(fp, filename, name, line, readingTick=-1):
+    # TODO: pass in readingTick to let Dudes use this code properly
+    # returns True if it successfully parses a weird line
+    #=~=~=~=~ '/' BLOCK TERMINATORS
+    global readingIfLevel
+    if line.find("/if") == 0:
+        if readingIfLevel > 0:
+            readingIfLevel -= 1
+            return True
+        raise BadPredicamentError(12, filename, name)
+    #=~=~=~=~ IF
+    elif line.strip().startswith("if "):
+        computeIf(fp, name, line)
+        return True
+    #=~=~=~=~ SET
+    elif line.strip().startswith("set "):
+        doSet(filename, name, line)
+        return True
+    elif line.strip().startswith("add "):
+        doMath(filename, name, line, 'add')
+        return True
+    elif line.strip().startswith("subtract "):
+        doMath(filename, name, line, 'subtract')
+        return True
+    return False
+
+def tryToOpen(dir_, filetype, name):
+    try:
+        if filetype=='pred':
+            filename, lineNo = predicaments[name]
+        elif filetype=='dude':
+            filename, lineNo = dudes[name]
+        else:
+            raise KeyError
+    except KeyError:
+        # if the predicament isn't in our master dictionary...
+        # TODO: this error does not raise when the pred doesn't exist
+        raise BadPredicamentError(3, self.name)
+    try:
+        open(os.path.join(dir_, filename), 'r')
+    except:
+        raise BadPredicamentError(15, filename, name)
+
+    return filename, lineNo
 
 def readMap(fp, name, line):
     # fp and line are things we need to iterate through the pred file
@@ -359,6 +367,85 @@ def readMap(fp, name, line):
 
     return maplist
 
+def doSet(filename, predname, line):
+    # TODO: needs much cleanup to handle strings/ints/bools more logically
+    try:
+        key, value = line.split('=')
+    except ValueError:
+        try:
+            key, value = line.split(' to ')
+        except ValueError:
+            raise BadPredicamentError(31, filename, predname, line)
+    # strip out the 'set ' part
+    key = key[4:].strip()
+    value = value.strip()
+    # store it in the Predicament class dictionary
+    try:
+        if value == 'random':
+            Predicament.variables[key.strip()] = random.randint(1,100)
+        elif type(Predicament.variables[key]) in (int, float):
+            Predicament.variables[key.strip()] = int(value)
+        else:
+            Predicament.variables[key.strip()] = value
+    except KeyError:
+        # nonexistant variable
+        # TODO: create nonexistent variables?
+        raise BadPredicamentError(21, predname, key.strip())
+
+def doMath(filename, name, line, operator):
+    # TODO: clean this up
+    if operator=='add':
+        try:
+            # variable assignment literally backwards, because that's more fun
+            value, key = line[4:].split('to')
+            value = value.strip()
+            key = key.strip()
+        except ValueError:
+            raise BadPredicamentError(35, filename, name, line)
+        # make sure variable exists
+        if key not in Predicament.variables:
+            raise BadPredicamentError(10, filename, name, line, key)
+        # make sure it's a number
+        try:
+            value = int(value)
+        except ValueError:
+            raise BadPredicamentError(37, filename, name, line, value)
+        if type(Predicament.variables[key]) == int:
+            Predicament.variables[key] += value
+        else:
+            raise BadPredicamentError(38, filename, name, line, key, 'add to')
+    elif operator=='subtract':
+        try:
+            # also literally backwards, because that's more fun
+            value, key = line[9:].split('from')
+            value = value.strip()
+            key = key.strip()
+        except ValueError:
+            raise BadPredicamentError(36, filename, self.name,
+                                      line)
+        if key not in Predicament.variables.keys():
+            raise BadPredicamentError(10, filename, self.name,
+                                      line, key, 'profile')
+        if type(value) != int:
+            raise BadPredicamentError(37, filename, self.name,
+                                          line, value)
+        if type(Predicament.variables[key]) == int:
+            Predicament.variables[key] -= value
+        else:
+            raise BadPredicamentError(38, filename, self.name,
+                                      line, key, 'subtract from')
+
+def computeIf(fp, name, line):
+    # here's where I jumped through a flaming hoop
+    # to avoid changing ninedotnine's doIf() code :P
+    global readingIfLevel
+    if doIf(fp, name, line):
+        # if the condition is true, read normally
+        readingIfLevel += 1
+    else:
+        # if the condition isn't true,
+        # discard lines until we reach end if
+        skipIf(fp, name)
 
 def doIf(fp, name, line):
     # code from 2013
@@ -474,6 +561,17 @@ def doIf(fp, name, line):
         return ( doIf(fp, name, line) or conditionIsTrue )
     raise BadPredicamentError(11, fp.name, name, line)
 
+def skipIf(fp, predname):
+    global readingIfLevel, tempIfLevel
+    while readingIfLevel < tempIfLevel:
+        nextline = getNonBlankLine(fp)
+        if nextline.startswith("/if"):
+            tempIfLevel -= 1
+        elif nextline.startswith("if "):
+            tempIfLevel += 1
+        elif nextline.find("/predicament") == 0:
+            raise BadPredicamentError(13, predname)
+
 def getNonBlankLine(fp):
     line = ''
     while line == '' or line.startswith("#"):
@@ -519,7 +617,9 @@ def findStartPoint(fp, lineNo, lookingFor, name):
             raise BadPredicamentError(2, name)
         busy = True
         break
-    return busy
+    if not busy:
+        raise BadPredicamentError(5, filename, name)
+    return True
 
 def findAllDefinitions(preddir, filetype):
     # populate a dictionary with locations of all known definitions of this filetype
@@ -553,12 +653,12 @@ prederrors = (
     "wrong predicament found: %s",
     "what?? predicament %s doesn't exist, \nor didn't exist when the game was started! >:(",
     "in %s, %s was not ended correctly.",
-    "reached the end of %s before finding %s\ndid you modify it while the game was running?", # 5
+    "reached end of %s\nbefore finding %s\ndid you modify it while the game was running?", # 5
     "in %s, %s has a type of '%s'.\ni don't know what the hell that means.",
     "%s doesn't have an end of predicament for %s",
     "data directory %s\nis nonexistent or unreadable. wtf",
     "%s has the type '%s', which is insane.",
-    "in %s:\npredicament %s has the following line:\n%s\n'%s' is not a valid entry in %s.", # 10
+    "in %s:\npredicament %s has the following line:\n%s\n'%s' is not a number variable.", # 10
     "in %s:\n%s has %s after if.\nyou forgot to use a keyword, used an invalid keyword,\nor didn't include a condition after 'or' or 'and'.\nkeywords other than 'then' must precede an if.\nonly use 'then' after the final if condition.",
     "in %s, there is an unexpected 'end if' in predicament %s",
     "reached end of predicament %s before 'end if'.\nconditionals must remain within originating predicament.",
@@ -590,8 +690,9 @@ prederrors = (
     "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' does not refer to a number. you can't %s it.",
     "",
     "", #40
-    "in %s\npredicament %s is of 'goto' type\nbut it has no destination after '->'"
-    "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet."
+    "in %s\npredicament %s is of 'goto' type\nbut it has no destination after '->'",
+    "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet.",
+    "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id"
 )
 
 PREDDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pred')

@@ -4,11 +4,14 @@ version = 1
 predicament = start
     type = goto -> entry
     set girlname = You went through a goto!
+    set progress = 0
 /predicament
 
 predicament = entry
     text = This is a test. %girlname%
-
+    text = %progress%
+    add 10 to progress
+    text = %progress%
     action = OK -> basicstuff
 /predicament entry
 
@@ -69,7 +72,7 @@ predicament = walkaround2
 
     text = This is Room 2.
 
-    right = walkaround1
+    right = Hey -> walkaround1
     up = walkaround2N
     down = walkaround2S
 /predicament

@@ -1,8 +1,8 @@
 version = 1
-# dudes are tick
+# dudes are tick lovers
 
 dude = chair
-    tick = 2
+    tick = 5
         text = It is tick#2
     /tick
 /dude

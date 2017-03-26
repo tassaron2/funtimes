@@ -84,6 +84,9 @@ class Dude:
         # do something with the data
         pass
 
+    def tick(self, tick):
+        print('ticked')
+
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # GTK+ Funwindow for Funplayer
