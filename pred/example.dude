@@ -1,0 +1,8 @@
+version = 1
+# dudes are tick
+
+dude = chair
+    tick = 2
+        text = It is tick#2
+    /tick
+/dude

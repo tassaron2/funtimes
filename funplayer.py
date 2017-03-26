@@ -2,7 +2,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # funplayer.py
-# last modified 2017/03/25
+# last modified 2017/03/26
 # created 2017/03/23
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
@@ -25,14 +25,23 @@ def play(predname='start'):
         predicaments[predname] = Funplayer(predname)
     predicaments[predname].play()
 
-class Funplayer():
+class Funplayer:
     # does computation of Predicament objects created by the parser
     # flexible so a non-gtk window could be used if it has the same interface
     # e.g. easier to make it work in terminal or on a webpage
     def __init__(self, predname):
         # each instance only plays 1 predicament
-        self.pred = funtimes.Predicament(predname)
+        while True:
+            self.pred = funtimes.Predicament(predname)
+            if not self.pred.goto:
+                break
+            else:
+                predname = self.pred.goto
         self._tick=0
+        # make player objects for dudes in this pred
+        self.dudes={}
+        for funtimesdude in self.pred.dudes:
+            self.dudes[funtimesdude.name] = Dude(funtimesdude)
 
     def play(self):
         # make some new boxes
@@ -65,7 +74,15 @@ class Funplayer():
         # our tick tracks time passage in this pred only
         # the window tick should measure total game ticks
         self._tick+=1
+        # check if any dudes need to be ticked
+        for dudename in self.pred.tick(self._tick):
+            self.dudes[dudename].tick(self._tick)
         window.tick()
+
+class Dude:
+    def __init__(self, funtimesDudeObj):
+        # do something with the data
+        pass
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -200,5 +217,5 @@ predicaments = {}
 
 if __name__=='__main__':
     # EXAMPLE OF HOW TO USE THIS MODULE IN OTHER SCRIPT
-    funplayer.play() # play 1st pred so window is not empty
-    funplayer.main() # get input (loops forever)
+    play() # play 1st pred so window is not empty
+    main() # get input (loops forever)

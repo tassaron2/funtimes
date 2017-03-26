@@ -1,8 +1,13 @@
 version = 1
 # example predicament to show all funtimes features
 
+predicament = start
+    type = goto -> entry
+    set girlname = You went through a goto!
+/predicament
+
 predicament = entry
-    text = This is a test.
+    text = This is a test. %girlname%
 
     action = OK -> basicstuff
 /predicament entry
@@ -44,25 +49,23 @@ predicament = walkaround1
 predicament = walkaround2
     map =
     #######   ######
-    C              #
     #              #
-    #         C    #
     #              #
+    #              #
+    #   C          #
     #              #
     #
-    #    B
-    #    B         #
+    #
     #              #
     #              #
     #              #
-    #        @     #
     #              #
     #              #
-    ##  ####WW######
+    #              #
+    #              #
+    ##  ############
     /map
-    entity = C -> chair
-    entity = B -> desk
-    entity = W -> window
+    dude = C -> chair
 
     text = This is Room 2.
 
@@ -97,7 +100,7 @@ predicament = walkaround2N
 
 predicament = walkaround2S
     map =
-    ##  ####WW######
+    ##  ############
     #              #
     #              #
     #              #

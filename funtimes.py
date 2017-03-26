@@ -2,7 +2,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # funtimes.py
-# last modified 2017/03/23
+# last modified 2017/03/26
 # resurrected by tassaron 2017/03/23
 # from code by ninedotnine & tassaron 2013/05/24-2013/06/30
 # inspired by a batch file game made in 2008
@@ -49,10 +49,11 @@ class Predicament:
         Predicament.numPredicaments += 1
 
         #=~=~=~ GUARANTEED ATTRIBUTES
+        # predname used to create this
         self.name = name
         # messages displayed in the description box
         self._text = []
-        # inputtypes: normal, textinput
+        # inputtypes: normal, textinput, goto
         self.inputtype = 'normal'
         #=~=~ Movement
         self.actionLabel = []
@@ -61,10 +62,16 @@ class Predicament:
         arrowListSequence = ('up', 'down', 'left', 'right')
         self.arrowLabel = ['^', 'v', '<', '>']
         self.arrowGoto = [None, None, None, None]
+        #=~=~ Dudes
+        # Dude objects created for this predicament
+        self._dudes = []
+        # symbols that represent the parellel dude on a map
+        self.dudesymbols = []
 
         #=~=~=~ OPTIONAL ATTRIBUTES
-        # parent which this Predicament inherits attributes from
-        self.parent = None
+        # destination that funplayer should goto right away
+        # i.e. if not None then user won't see this pred
+        self.goto = None
         # variable outputed by 'textinput' inputtype
         self.result = None
         # sound played at Predicament creation
@@ -90,27 +97,11 @@ class Predicament:
             # if the file can't be opened...
             raise BadPredicamentError(15, filename, self.name)
 
-
-        busy = False # whether we are currently reading a predicament
         with open(os.path.join(PREDDIR, filename), 'r') as fp:
-            # basically all of this is just to get to the right line and test
-            for line in fp:
-                # count down to the correct line
-                if lineNo > 1:
-                    lineNo -= 1
-                    continue
-                line = line.strip()
-                # we know this is the right line
-                # but don't trust the dictionary & check anyway!
-                if line.find('predicament =') != 0:
-                    raise BadPredicamentError(1, self.name)
-                # if it's the wrong predicament, freak the hell out
-                elif self.name != line.split('=')[1].strip():
-                    raise BadPredicamentError(2, self.name)
-                busy = True
-                break
+            # find line in file where this predicament begins...
+            busy = findStartPoint(fp, lineNo, 'predicament', self.name)
             if not busy:
-                # we should be busy reading a predicament by this point...
+                # we should be busy reading a predicament by this point
                 raise BadPredicamentError(5, filename, self.name)
 
             # finally, we start actually assigning the data
@@ -118,6 +109,7 @@ class Predicament:
             readingIfLevel = 0
             tempIfLevel = 0
             # line should be true (it should still be the new pred line)
+            line=True
             while line:
                 line = getNonBlankLine(fp)
                 #=~  FIRST DO STUFF WITHOUT = IN IT
@@ -151,10 +143,10 @@ class Predicament:
                 # TODO: needs much cleanup to handle strings/ints/bools more logically
                 elif line.strip().startswith("set "):
                     try:
-                        key, value = line.split('to')
+                        key, value = line.split('=')
                     except ValueError:
                         try:
-                            key, value = line.split('=')
+                            key, value = line.split(' to ')
                         except ValueError:
                             raise BadPredicamentError(31, filename, self.name,
                                                       line)
@@ -252,10 +244,18 @@ class Predicament:
                     self.sound.append(value.strip())
                     continue
                 elif key == 'type':
-                    if value.strip() not in ('normal', 'inputtext'):
+                    value = value.strip()
+                    self.inputtype = value
+                    if value.startswith('goto'):
+                        try:
+                            keyw, dest = value.split('->')
+                            self.inputtype = keyw.strip()
+                            self.goto  = dest.strip()
+                        except ValueError:
+                            raise BadPredicamentError(41, filename, self.name)
+                    if self.inputtype not in ('normal', 'inputtext', 'goto'):
                         raise BadPredicamentError(6, filename, self.name,
                                                   value.strip())
-                    self.inputtype = value.strip()
                     continue
                 elif key == 'result':
                     self.result = value.strip()
@@ -269,7 +269,13 @@ class Predicament:
                 elif key == 'name':
                     self.mapname = value.strip()
                     continue
-                elif key == 'entity':
+                elif key == 'dude':
+                    try:
+                        thisDudesSymbol, thisDudesName = value.split('->')
+                    except ValueError:
+                        raise BadPredicamentError(42, filename, self.name, value.strip())
+                    self._dudes.append(Dude(thisDudesName.strip()))
+                    self.dudesymbols.append(thisDudesSymbol.strip())
                     continue
                 elif key in ('up', 'down', 'left', 'right'):
                     try:
@@ -314,6 +320,26 @@ class Predicament:
     def tilemap(self):
         return self.predmap
 
+    @property
+    # returns list of dude OBJECTS belonging to this pred
+    def dudes(self):
+        return [i for i in self._dudes]
+
+    # returns list of dude NAMES who want to do something in this tickNum
+    # also small arachnids, part of the order Parasitiformes
+    def tick(self, tickNum):
+        returnlist = []
+        for dudeObj in self._dudes:
+            if tickNum in dudeObj.ticks:
+                returnlist.append(dudeObj.name)
+        return returnlist
+
+
+class Dude:
+    def __init__(self, name):
+        self.name = name
+        # list of ticks this Dude wants in on
+        self.ticks=[]
 
 def readMap(fp, name, line):
     # fp and line are things we need to iterate through the pred file
@@ -472,14 +498,37 @@ def replaceVariables(text):
     return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
                             + text[end+1:])
 
-def findPredicaments(preddir):
-    # populate predicaments dictionary with locations of all known predicaments
+def findStartPoint(fp, lineNo, lookingFor, name):
+    # cProfile says this causes barely any overhead even with 1000s of lines
+    # we could do something like this: http://stackoverflow.com/a/620492
+    # however it adds extra complexity w/o much gain, unless file is collosal
+    busy = False # whether we are currently reading something
+    # now get to the right line and test it
+    for line in fp:
+        # count down to the correct line
+        if lineNo > 1:
+            lineNo -= 1
+            continue
+        line = line.strip()
+        # we know this is the right line
+        # but don't trust the dictionary & check anyway!
+        if line.find('%s =' % lookingFor) != 0:
+            raise BadPredicamentError(1, name)
+        # if it's the wrong thing, freak the hell out
+        elif name != line.split('=')[1].strip():
+            raise BadPredicamentError(2, name)
+        busy = True
+        break
+    return busy
+
+def findAllDefinitions(preddir, filetype):
+    # populate a dictionary with locations of all known definitions of this filetype
     if not os.path.isdir(preddir):
-        raise BadPredicamentError(8)
+        raise BadPredicamentError(8, preddir)
     predicaments = {}
     for filename in os.listdir(preddir):
         basename, ext = os.path.splitext(filename)
-        if ext != '.pred':
+        if ext != '.%s' % filetype:
             #print("WARNING: skipping %s/%s%s..." % (preddir, basename, ext))
             continue
         pointless = True # whether this boolean is pointless
@@ -488,7 +537,8 @@ def findPredicaments(preddir):
             for line in fp:
                 lineNo += 1
                 line = line.strip()
-                if line.find("predicament =") == 0:
+                if line.find("predicament =") == 0 and filetype=='pred'\
+                or line.find("dude =") == 0 and filetype=='dude':
                     name = line.split('=')[1]
                     # create entry in predicaments dictionary
                     # 'title of predicament' : ('which pred file it is in',
@@ -506,7 +556,7 @@ prederrors = (
     "reached the end of %s before finding %s\ndid you modify it while the game was running?", # 5
     "in %s, %s has a type of '%s'.\ni don't know what the hell that means.",
     "%s doesn't have an end of predicament for %s",
-    "no data directory",
+    "data directory %s\nis nonexistent or unreadable. wtf",
     "%s has the type '%s', which is insane.",
     "in %s:\npredicament %s has the following line:\n%s\n'%s' is not a valid entry in %s.", # 10
     "in %s:\n%s has %s after if.\nyou forgot to use a keyword, used an invalid keyword,\nor didn't include a condition after 'or' or 'and'.\nkeywords other than 'then' must precede an if.\nonly use 'then' after the final if condition.",
@@ -525,7 +575,7 @@ prederrors = (
     "in %s\npredicament %s has the following condition:\n%s\nbut %s is not of a comparable type\nif it was intended to contain a word, it will always contain a word\nsetting it to a number will not allow you to perform comparisons",
     "in %s\npredicament %s has the following condition:\n%s\nthis is trying to perform a comparison on %s,\nbut %s is neither a number nor a variable containing a number.\nyou are comparing apples and oranges, and i'm allergic.",
     # ^-- 25
-    "in %s:\npredicament %s has this line:\n%s\nan if statement must contain 'is' or 'has'.",
+    "in %s:\npredicament %s has this line:\n%s\nan if statement must contain 'is' or '='",
     "in %s:\npredicament %s has this line:\n%s\nchecking the status of a quest can only be done with keywords:\ninitial, known, started, done, failed\nor 'progress' followed by a number",
     "in %s:\npredicament %s has this line:\n%s\nit appears to refer to a dictionary called '%s'\nbut i don't know what that is... :/",
     "in %s:\npredicament %s has this line:\n%s\nnegating a comparison is pointless. just use the opposite.",
@@ -538,14 +588,26 @@ prederrors = (
     "in %s, predicament %s\ndoes not have a 'from' on this line:\n%s\nyou must subtract FROM a variable, using the word FROM.",
     "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' is not an integer. you must use a whole number\nor a profile entry that contains a whole number.",
     "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' does not refer to a number. you can't %s it.",
+    "",
+    "", #40
+    "in %s\npredicament %s is of 'goto' type\nbut it has no destination after '->'"
+    "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet."
 )
 
-PREDDIR = '%s/pred' % os.path.dirname(os.path.realpath(__file__))
-predicaments = findPredicaments(PREDDIR)
+PREDDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pred')
+DUDEDIR = PREDDIR
+predicaments = findAllDefinitions(PREDDIR, 'pred')
+dudes = findAllDefinitions(DUDEDIR, 'dude')
 
 if __name__ == '__main__':
     print("content of", PREDDIR, ": ", os.listdir(PREDDIR))
-    print()
+    print('----')
     print("number of predicaments:", len(predicaments))
     for key in predicaments:
         print(key + ":", predicaments[key])
+    print('----')
+    print("content of", DUDEDIR, ": ", os.listdir(DUDEDIR))
+    print('----')
+    print("number of dudes:", len(dudes))
+    for key in dudes:
+        print(key + ":", dudes[key])
