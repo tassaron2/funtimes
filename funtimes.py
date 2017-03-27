@@ -318,39 +318,47 @@ The first 'play' of a Predicament is the first tick, and so on
                     # add to event queue
                     if readingTick!=0:
                         # this event is for specific tick
-                        self._events.append(('text',replaceVariables(value)))
+                        self._events.append(('text',value))
                         self.eventNums.append(readingTick)
                     else:
                         # this event is for every tick
-                        self.everytick.append(('text',replaceVariables(value)))
+                        self.everytick.append(('text',value))
                     continue
 
     # returns events for the given tick as a list
     def events(self, tick):
+        def doEvent(eventType, event):
+            if eventType in ('set','add','subtract'):
+                key, value = event.split('=')
+                try:
+                    newvalue=value
+                    if type(Predicament.variables[key]) in (int, float):
+                        newvalue=int(value)
+                except KeyError:
+                    # nonexistant variable
+                    raise BadPredicamentError(21, predname, key.strip())
+                if eventType=='set':
+                    Predicament.variables[key]=newvalue
+                elif eventType=='add':
+                    Predicament.variables[key]+=newvalue
+                elif eventType=='subtract':
+                    Predicament.variables[key]-=newvalue
+            # eventTypes we do work for still get passed through
+            # in case funplayer wants to do something else with em too
+            if eventType=='text':
+                returnlist.append((eventType, replaceVariables(event)))
+            else:
+                returnlist.append((eventType, event))
+
         returnlist = []
         if tick=='everytick':
             for eventType, event in self.everytick:
-                returnlist.append((eventType, event))
+                doEvent(eventType, event)
         else:
             for eventNum, event in zip(self.eventNums, self._events):
                 # if this event is for the given tick...
                 if eventNum==tick:
-                    returnlist.append((event[0], event[1]))
-                    if event[0] in ('set','add','subtract'):
-                        key, value = event[1].split('=')
-                        try:
-                            newvalue=value
-                            if type(Predicament.variables[key]) in (int, float):
-                                newvalue=int(value)
-                        except KeyError:
-                            # nonexistant variable
-                            raise BadPredicamentError(21, predname, key.strip())
-                        if event[0]=='set':
-                            Predicament.variables[key]=newvalue
-                        elif event[0]=='add':
-                            Predicament.variables[key]+=newvalue
-                        elif event[0]=='subtract':
-                            Predicament.variables[key]-=newvalue
+                    doEvent(event[0],event[1])
         return returnlist
 
 def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
