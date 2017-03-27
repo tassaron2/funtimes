@@ -9,9 +9,10 @@ predicament = start
 
 predicament = entry
     text = This is a test. %girlname%
-    text = %progress%
+    text = progress is %progress%
     add 10 to progress
-    text = %progress%
+    text = progress is %progress%
+    text = statements in predicaments execute immediately
     action = OK -> basicstuff
 /predicament entry
 
@@ -46,6 +47,7 @@ predicament = basicstuff
 
 predicament = walkaround1
     text = room 1
+    dude = A -> talker
     left = walkaround2
 /predicament
 

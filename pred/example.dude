@@ -3,6 +3,39 @@ version = 1
 
 dude = chair
     tick = 5
-        text = It is tick#2
+        text = It is tick #5
     /tick
+/dude
+
+dude = talker
+    tick = 1
+        set progress = 42
+        text = variable changed to 42
+        text = but change in text (%progress%) isn't reflected yet
+        if progress = 42
+            then not
+            text = if statement does not evaluate to 42
+            text = setting variables in a tick does not execute immediately
+            text = a forgivable flaw for the time being
+        /if
+    /tick
+    tick = 2
+        add 1 to progress
+        text = tick2: progress is now %progress%
+    /tick
+    tick = 3
+        subtract 1 from progress
+        text = tick2: added 1 to progress so it is %progress%
+    /tick
+    tick = 4
+        text = subtracted 1 from progress so it is %progress%
+        if progress is < 40
+            then
+            text = Oh dear dog.....
+        /if
+    /tick
+    if progress is > 30
+        then
+        text = everytick says: progress is %progress%
+    /if
 /dude

@@ -38,10 +38,6 @@ class Funplayer:
             else:
                 predname = self.pred.goto
         self._tick=0
-        # make player objects for dudes in this pred
-        self.dudes={}
-        for funtimesdude in self.pred.dudes:
-            self.dudes[funtimesdude.name] = Dude(funtimesdude)
 
     def play(self):
         # make some new boxes
@@ -74,18 +70,26 @@ class Funplayer:
         # our tick tracks time passage in this pred only
         # the window tick should measure total game ticks
         self._tick+=1
-        # check if any dudes need to be ticked
+
+        # tick dudes that need to be ticked every tick... tock
+        for dudename in self.pred.tick('everytick'):
+            Dude(dudename).tick('everytick')
+
+        # check if any other dudes need to be ticked
         for dudename in self.pred.tick(self._tick):
-            self.dudes[dudename].tick(self._tick)
+            Dude(dudename).tick(self._tick)
+        # anyone else has missed the train
+
         window.tick()
 
 class Dude:
-    def __init__(self, funtimesDudeObj):
-        # do something with the data
-        pass
+    def __init__(self, dudename):
+        self.dude = funtimes.Dude(dudename)
 
     def tick(self, tick):
-        print('ticked')
+        for eventType, event in self.dude.events(tick):
+            if eventType=='text':
+                window.text.add(event)
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #

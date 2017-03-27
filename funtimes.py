@@ -64,10 +64,13 @@ class Predicament:
         self.arrowLabel = ['^', 'v', '<', '>']
         self.arrowGoto = [None, None, None, None]
         #=~=~ Dudes
-        # Dude objects created for this predicament
+        # Dude names for creating Dudes for this predicament
         self._dudes = []
         # symbols that represent the parellel dude on a map
         self.dudesymbols = []
+        # Funplayer may want to generate Dudes on-the-fly but
+        # we need information about dudes so we must also pregen them
+        self._pregenDudes = []
 
         #=~=~=~ OPTIONAL ATTRIBUTES
         # destination that funplayer should goto right away
@@ -168,7 +171,8 @@ class Predicament:
                         thisDudesSymbol, thisDudesName = value.split('->')
                     except ValueError:
                         raise BadPredicamentError(42, filename, self.name, value.strip())
-                    self._dudes.append(Dude(thisDudesName.strip()))
+                    self._dudes.append(thisDudesName.strip())
+                    self._pregenDudes.append(Dude(thisDudesName.strip()))
                     self.dudesymbols.append(thisDudesSymbol.strip())
                     continue
                 elif key in ('up', 'down', 'left', 'right'):
@@ -217,17 +221,23 @@ class Predicament:
         return self.predmap
 
     @property
-    # returns list of dude OBJECTS belonging to this pred
+    # returns list of dudenames belonging to this pred
     def dudes(self):
-        return [i for i in self._dudes]
+        return self._dudes
 
-    # returns list of dude NAMES who want to do something in this tickNum
+    # returns list of dudenames who want to do something in this tickNum
     # also small arachnids, part of the order Parasitiformes
     def tick(self, tickNum):
         returnlist = []
-        for dudeObj in self._dudes:
-            if tickNum in dudeObj.ticks:
-                returnlist.append(dudeObj.name)
+        # iterate through our dudes
+        for dudeObj in self._pregenDudes:
+            if tickNum=='everytick':
+                if len(dudeObj.everytick)==0:
+                    continue
+            elif tickNum not in dudeObj.ticks:
+                continue
+            # return this dude if relevant to the requested tick
+            returnlist.append(dudeObj.name)
         return returnlist
 
 
@@ -248,6 +258,12 @@ The first 'play' of a Predicament is the first tick, and so on
         self.text = []
         # list of ticks this Dude wants in on
         self.ticks = []
+        # events this dude wants to inject at certain tickNo
+        self._events = [] # a list of ('key','value') pairs
+        # parellel list of tickNumbers for events
+        self.eventNums = []
+        # events this dude is really persistent about
+        self.everytick = [] # a list of ('key','value') pairs
 
         #=~=~=~ TRY TO OPEN THE DUDE FILE CONTAINING OUR DUDE
         filename, lineNo = tryToOpen(DUDEDIR, 'dude', name)
@@ -268,7 +284,6 @@ The first 'play' of a Predicament is the first tick, and so on
                 # if reading a new tick, append to list of ticks this dude wants in on
                 if readingTick != 0 and readingTick not in self.ticks:
                     self.ticks.append(readingTick)
-                    print(self.ticks)
                 line = getNonBlankLine(fp)
                 #=~  FIRST DO STUFF WITHOUT = IN IT
                 if line.find("/dude") == 0:
@@ -277,7 +292,7 @@ The first 'play' of a Predicament is the first tick, and so on
                 elif line.find("/tick") == 0:
                     readingTick=0
                     continue
-                if doWeirdLines(fp, filename, self.name, line, readingTick):
+                if doWeirdLines(fp, filename, self.name, line, readingTick, self):
                     # if this returns True then it did the parsing work for us
                     continue
 
@@ -300,13 +315,48 @@ The first 'play' of a Predicament is the first tick, and so on
                     # remove only the first space if any
                     if value and value[0] == ' ':
                         value = value[1:]
-                    # add each line of text onto the prev line of text
-                    self.text.append(replaceVariables(value))
+                    # add to event queue
+                    if readingTick!=0:
+                        # this event is for specific tick
+                        self._events.append(('text',replaceVariables(value)))
+                        self.eventNums.append(readingTick)
+                    else:
+                        # this event is for every tick
+                        self.everytick.append(('text',replaceVariables(value)))
                     continue
 
-def doWeirdLines(fp, filename, name, line, readingTick=-1):
-    # TODO: pass in readingTick to let Dudes use this code properly
+    # returns events for the given tick as a list
+    def events(self, tick):
+        returnlist = []
+        if tick=='everytick':
+            for eventType, event in self.everytick:
+                returnlist.append((eventType, event))
+        else:
+            for eventNum, event in zip(self.eventNums, self._events):
+                # if this event is for the given tick...
+                if eventNum==tick:
+                    returnlist.append((event[0], event[1]))
+                    if event[0] in ('set','add','subtract'):
+                        key, value = event[1].split('=')
+                        try:
+                            newvalue=value
+                            if type(Predicament.variables[key]) in (int, float):
+                                newvalue=int(value)
+                        except KeyError:
+                            # nonexistant variable
+                            raise BadPredicamentError(21, predname, key.strip())
+                        if event[0]=='set':
+                            Predicament.variables[key]=newvalue
+                        elif event[0]=='add':
+                            Predicament.variables[key]+=newvalue
+                        elif event[0]=='subtract':
+                            Predicament.variables[key]-=newvalue
+        return returnlist
+
+def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
     # returns True if it successfully parses a weird line
+    # readingTick defaults to -1 for Predicaments
+    # when readingTick is 0 or higher, it's for use by Dudes
     #=~=~=~=~ '/' BLOCK TERMINATORS
     global readingIfLevel
     if line.find("/if") == 0:
@@ -320,13 +370,13 @@ def doWeirdLines(fp, filename, name, line, readingTick=-1):
         return True
     #=~=~=~=~ SET
     elif line.strip().startswith("set "):
-        doSet(filename, name, line)
+        doSet(filename, name, line, readingTick,self)
         return True
     elif line.strip().startswith("add "):
-        doMath(filename, name, line, 'add')
+        doMath(filename, name, line, 'add', readingTick,self)
         return True
     elif line.strip().startswith("subtract "):
-        doMath(filename, name, line, 'subtract')
+        doMath(filename, name, line, 'subtract', readingTick,self)
         return True
     return False
 
@@ -367,7 +417,9 @@ def readMap(fp, name, line):
 
     return maplist
 
-def doSet(filename, predname, line):
+def doSet(filename, predname, line, readingTick=-1,self=None):
+    # readingTick defaults to -1 for Predicaments
+    # when readingTick is 0 or higher, it's for use by Dudes
     # TODO: needs much cleanup to handle strings/ints/bools more logically
     try:
         key, value = line.split('=')
@@ -379,21 +431,33 @@ def doSet(filename, predname, line):
     # strip out the 'set ' part
     key = key[4:].strip()
     value = value.strip()
-    # store it in the Predicament class dictionary
-    try:
-        if value == 'random':
-            Predicament.variables[key.strip()] = random.randint(1,100)
-        elif type(Predicament.variables[key]) in (int, float):
-            Predicament.variables[key.strip()] = int(value)
-        else:
-            Predicament.variables[key.strip()] = value
-    except KeyError:
-        # nonexistant variable
-        # TODO: create nonexistent variables?
-        raise BadPredicamentError(21, predname, key.strip())
+    # store it in the Predicament class dictionary right away
+    # OR create a Dude event for it if this is a Dude
+    newvalue = value
+    # change value to a real number or something else if necessary
+    if value == 'random':
+        newvalue = random.randint(1,100)
+    elif type(Predicament.variables[key]) in (int, float):
+        newvalue = int(value)
+    if readingTick==-1:
+        # this is happening immediately
+        try:
+            Predicament.variables[key] = newvalue
+        except KeyError:
+            # nonexistant variable
+            # TODO: create nonexistent variables?
+            raise BadPredicamentError(21, predname, key.strip())
+    elif readingTick==0:
+        #dude object has been passed to us
+        self.everytick.append(('set','%s=%s' % (key, newvalue)))
+    elif readingTick>0:
+        self._events.append(('set','%s=%s' % (key, newvalue)))
+        self.eventNums.append(readingTick)
 
-def doMath(filename, name, line, operator):
-    # TODO: clean this up
+def doMath(filename, name, line, operator, readingTick=-1,self=None):
+    # readingTick defaults to -1 for Predicaments
+    # when readingTick is 0 or higher, it's for use by Dudes
+    # TODO: clean this up, there's much copy-paste
     if operator=='add':
         try:
             # variable assignment literally backwards, because that's more fun
@@ -402,18 +466,28 @@ def doMath(filename, name, line, operator):
             key = key.strip()
         except ValueError:
             raise BadPredicamentError(35, filename, name, line)
+        if type(Predicament.variables[key]) != int:
+            raise BadPredicamentError(38, filename, name, line, key, 'add to')
         # make sure variable exists
         if key not in Predicament.variables:
             raise BadPredicamentError(10, filename, name, line, key)
-        # make sure it's a number
-        try:
-            value = int(value)
-        except ValueError:
-            raise BadPredicamentError(37, filename, name, line, value)
-        if type(Predicament.variables[key]) == int:
-            Predicament.variables[key] += value
-        else:
-            raise BadPredicamentError(38, filename, name, line, key, 'add to')
+
+        # if we're doing this immediately
+        if readingTick==-1:
+            # make it a number
+            try:
+                value = int(value)
+            except TypeError:
+                # it's not a goddamn number
+                raise BadPredicamentError(37, filename, name, line, value)
+            Predicament.variables[key]+=value
+        elif readingTick==0:
+            #dude object has been passed to us
+            self.everytick.append(('add','%s=%s' % (key, value)))
+        elif readingTick>0:
+            self._events.append(('add','%s=%s' % (key, value)))
+            self.eventNums.append(readingTick)
+
     elif operator=='subtract':
         try:
             # also literally backwards, because that's more fun
@@ -423,17 +497,25 @@ def doMath(filename, name, line, operator):
         except ValueError:
             raise BadPredicamentError(36, filename, self.name,
                                       line)
-        if key not in Predicament.variables.keys():
+        if key not in Predicament.variables:
             raise BadPredicamentError(10, filename, self.name,
                                       line, key, 'profile')
-        if type(value) != int:
-            raise BadPredicamentError(37, filename, self.name,
-                                          line, value)
-        if type(Predicament.variables[key]) == int:
+        if type(Predicament.variables[key]) != int:
+            raise BadPredicamentError(38, filename, self.name, line, key, 'subtract from')
+
+        if readingTick==-1:
+            try:
+                value = int(value)
+            except TypeError:
+                # it's not a goddamn number
+                raise BadPredicamentError(37, filename, name, line, value)
             Predicament.variables[key] -= value
-        else:
-            raise BadPredicamentError(38, filename, self.name,
-                                      line, key, 'subtract from')
+        elif readingTick==0:
+            #dude object has been passed to us
+            self.everytick.append(('subtract','%s=%s' % (key, value)))
+        elif readingTick>0:
+            self._events.append(('subtract','%s=%s' % (key, value)))
+            self.eventNums.append(readingTick)
 
 def computeIf(fp, name, line):
     # here's where I jumped through a flaming hoop
@@ -569,7 +651,9 @@ def skipIf(fp, predname):
             tempIfLevel -= 1
         elif nextline.startswith("if "):
             tempIfLevel += 1
-        elif nextline.find("/predicament") == 0:
+        elif nextline.find("/predicament") == 0\
+        or nextline.find("/tick") == 0\
+        or nextline.find("/dude") == 0:
             raise BadPredicamentError(13, predname)
 
 def getNonBlankLine(fp):
