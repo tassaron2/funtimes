@@ -7,9 +7,9 @@
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
-# Funplayer object parses Funtimes Predicament objects
-# global functions provide access to Funplayer
-# uses GTK+ Funwindow object to draw what it computes
+# fundamental objects for computing Funtimes output is at the top
+# under the next 'comment flag' is GTK stuff for the window
+# but this is designed to be flexible so another window could be used later
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -17,16 +17,20 @@
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import funtimes
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 def play(predname='start'):
     global predicaments
     if predname not in predicaments:
-        # make a Funplayer for this predicament if there is none
-        predicaments[predname] = Funplayer(predname)
+        # make a Predicament for this predicament if there is none
+        predicaments[predname] = Predicament(predname)
     predicaments[predname].play()
 
-class Funplayer:
-    # does computation of Predicament objects created by the parser
+
+class Predicament:
+    # does computation of Predicament objects created by funtimes module
     # flexible so a non-gtk window could be used if it has the same interface
     # e.g. easier to make it work in terminal or on a webpage
     def __init__(self, predname):
@@ -72,11 +76,11 @@ class Funplayer:
         self._tick+=1
 
         # tick dudes that need to be ticked every tick... tock
-        for dudename in self.pred.tick('everytick'):
+        for dudename in self.pred.dudesForTick('everytick'):
             Dude(dudename).tick('everytick')
 
         # check if any other dudes need to be ticked
-        for dudename in self.pred.tick(self._tick):
+        for dudename in self.pred.dudesForTick(self._tick):
             Dude(dudename).tick(self._tick)
         # anyone else has missed the train
 
@@ -96,17 +100,15 @@ class Dude:
 # GTK+ Funwindow for Funplayer
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+
 
 def main():
     Gtk.main()
 
-# based on a batch file therefore needs goto ;)
-# actually we need this to catch widgets passed from GTK
-# so they don't interfere with Funplayer's ignorance of GTK
 def goto(*args):
+    # based on a batch file therefore needs goto ;)
+    # actually we need this to catch widgets passed from GTK
+    # so they don't interfere with my nice pure play() function
     # the last argument is the new predname
     newpred = args[-1]
     play(newpred)
@@ -124,7 +126,6 @@ class Funwindow(Gtk.Window):
         self.connect("delete-event", Gtk.main_quit)
         self._tick=0
 
-    #=~=~=~=~=~ FUNCTIONS FUNPLAYER USES
     def clear(self):
         # empty the window contents
         self.remove(self.body)
@@ -137,7 +138,7 @@ class Funwindow(Gtk.Window):
     def draw(self):
         self.show_all()
 
-    #=~=~=~=~=~ PROPERTIES FUNPLAYER USES
+    #=~=~=~=~=~ PROPERTIES FOR THE TOP PART OF THE CODE TO USE
     #=~=~ Each should be an object with properties genericizing its actions
     @property
     def tilemap(self):

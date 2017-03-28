@@ -57,14 +57,15 @@ class Predicament:
         # inputtypes: normal, textinput, goto
         self.inputtype = 'normal'
         #=~=~ Movement
+        # remember when funtimes had four options per screen? :p
         self.actionLabel = []
         self.actionGoto = []
-        # arrow label and goto lists use this sequence:
+        # the two 'arrow' lists below use this sequence:
         arrowListSequence = ('up', 'down', 'left', 'right')
         self.arrowLabel = ['^', 'v', '<', '>']
         self.arrowGoto = [None, None, None, None]
         #=~=~ Dudes
-        # Dude names for creating Dudes for this predicament
+        # a list of (dudesymbol, dudename) tuples
         self._dudes = []
         # symbols that represent the parellel dude on a map
         self.dudesymbols = []
@@ -114,7 +115,7 @@ class Predicament:
 
                 #=~=~=~=~ NORMAL STUFF THAT USES =
                 try:
-                    key, value = line.split('=')
+                    key, value = splitLine(line,'=')
                 except ValueError:
                     raise BadPredicamentError(18, filename, self.name, line)
                 key = key.rstrip().lower()
@@ -171,7 +172,7 @@ class Predicament:
                         thisDudesSymbol, thisDudesName = value.split('->')
                     except ValueError:
                         raise BadPredicamentError(42, filename, self.name, value.strip())
-                    self._dudes.append(thisDudesName.strip())
+                    self._dudes.append((thisDudesSymbol.strip(), thisDudesName.strip()))
                     self._pregenDudes.append(Dude(thisDudesName.strip()))
                     self.dudesymbols.append(thisDudesSymbol.strip())
                     continue
@@ -223,11 +224,11 @@ class Predicament:
     @property
     # returns list of dudenames belonging to this pred
     def dudes(self):
-        return self._dudes
+        return [dudename for dudesymbol, dudename in self._dudes]
 
     # returns list of dudenames who want to do something in this tickNum
     # also small arachnids, part of the order Parasitiformes
-    def tick(self, tickNum):
+    def dudesForTick(self, tickNum):
         returnlist = []
         # iterate through our dudes
         for dudeObj in self._pregenDudes:
@@ -298,7 +299,7 @@ The first 'play' of a Predicament is the first tick, and so on
 
                 #=~=~=~=~ NORMAL STUFF THAT USES =
                 try:
-                    key, value = line.split('=')
+                    key, value = splitLine(line, '=')
                 except ValueError:
                     raise BadPredicamentError(18, filename, self.name, line)
                 key = key.rstrip().lower()
@@ -327,39 +328,52 @@ The first 'play' of a Predicament is the first tick, and so on
 
     # returns events for the given tick as a list
     def events(self, tick):
-        def doEvent(eventType, event):
-            if eventType in ('set','add','subtract'):
-                key, value = event.split('=')
-                try:
-                    newvalue=value
-                    if type(Predicament.variables[key]) in (int, float):
-                        newvalue=int(value)
-                except KeyError:
-                    # nonexistant variable
-                    raise BadPredicamentError(21, predname, key.strip())
-                if eventType=='set':
-                    Predicament.variables[key]=newvalue
-                elif eventType=='add':
-                    Predicament.variables[key]+=newvalue
-                elif eventType=='subtract':
-                    Predicament.variables[key]-=newvalue
-            # eventTypes we do work for still get passed through
-            # in case funplayer wants to do something else with em too
-            if eventType=='text':
-                returnlist.append((eventType, replaceVariables(event)))
-            else:
-                returnlist.append((eventType, event))
-
         returnlist = []
         if tick=='everytick':
             for eventType, event in self.everytick:
-                doEvent(eventType, event)
+                returnlist = Dude.doEvent(eventType, event, returnlist)
         else:
             for eventNum, event in zip(self.eventNums, self._events):
                 # if this event is for the given tick...
                 if eventNum==tick:
-                    doEvent(event[0],event[1])
+                    returnlist = Dude.doEvent(event[0],event[1], returnlist)
         return returnlist
+
+    @staticmethod
+    def doEvent(eventType, event, returnlist):
+        # do events in this module as they're being returned to funplayer
+        if eventType in ('set','add','subtract'):
+            key, value = event.split('=')
+            newvalue = value
+            try:
+                if type(Predicament.variables[key]) in (int, float):
+                    newvalue=giveNumberIfPossible(value)
+            except KeyError:
+                # nonexisteant variable
+                newvalue=giveNumberIfPossible(value)
+            if eventType=='set':
+                Predicament.variables[key]=newvalue
+            elif eventType=='add':
+                Predicament.variables[key]+=newvalue
+            elif eventType=='subtract':
+                Predicament.variables[key]-=newvalue
+        # eventTypes we do work for still get passed through
+        # in case funplayer wants to do something else with em too
+        if eventType=='text':
+            returnlist.append((eventType, replaceVariables(event)))
+        else:
+            returnlist.append((eventType, event))
+        return returnlist
+
+def splitLine(line, splitOn):
+    # splits line into key, value on splitOn char
+    # ignores any subsequent splitOn char
+    stuff = line.split('=')
+    key = stuff[0]
+    # first time using join() and WOW this is cool:
+    value = "".join(textpart for i, textpart in enumerate(stuff) if i != 0)
+    return key, value
+
 
 def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
     # returns True if it successfully parses a weird line
@@ -374,7 +388,7 @@ def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
         raise BadPredicamentError(12, filename, name)
     #=~=~=~=~ IF
     elif line.strip().startswith("if "):
-        computeIf(fp, name, line)
+        computeIf(fp, name, line, readingTick)
         return True
     #=~=~=~=~ SET
     elif line.strip().startswith("set "):
@@ -428,7 +442,6 @@ def readMap(fp, name, line):
 def doSet(filename, predname, line, readingTick=-1,self=None):
     # readingTick defaults to -1 for Predicaments
     # when readingTick is 0 or higher, it's for use by Dudes
-    # TODO: needs much cleanup to handle strings/ints/bools more logically
     try:
         key, value = line.split('=')
     except ValueError:
@@ -441,20 +454,21 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
     value = value.strip()
     # store it in the Predicament class dictionary right away
     # OR create a Dude event for it if this is a Dude
-    newvalue = value
     # change value to a real number or something else if necessary
+    newvalue = value
     if value == 'random':
         newvalue = random.randint(1,100)
-    elif type(Predicament.variables[key]) in (int, float):
-        newvalue = int(value)
+
+    try:
+        if type(Predicament.variables[key]) in (int, float):
+            newvalue = int(newvalue)
+    except KeyError:
+            # nonexistaent variable!
+            newvalue = giveNumberIfPossible(newvalue)
+
     if readingTick==-1:
         # this is happening immediately
-        try:
-            Predicament.variables[key] = newvalue
-        except KeyError:
-            # nonexistant variable
-            # TODO: create nonexistent variables?
-            raise BadPredicamentError(21, predname, key.strip())
+        Predicament.variables[key] = newvalue
     elif readingTick==0:
         #dude object has been passed to us
         self.everytick.append(('set','%s=%s' % (key, newvalue)))
@@ -473,7 +487,7 @@ def doMath(filename, name, line, operator, readingTick=-1,self=None):
             value = value.strip()
             key = key.strip()
         except ValueError:
-            raise BadPredicamentError(35, filename, name, line)
+            raise BadPredicamentError(35, filename, name, line,'to','to')
         if type(Predicament.variables[key]) != int:
             raise BadPredicamentError(38, filename, name, line, key, 'add to')
         # make sure variable exists
@@ -503,13 +517,11 @@ def doMath(filename, name, line, operator, readingTick=-1,self=None):
             value = value.strip()
             key = key.strip()
         except ValueError:
-            raise BadPredicamentError(36, filename, self.name,
-                                      line)
+            raise BadPredicamentError(35, filename, name, line,'from','from')
         if key not in Predicament.variables:
-            raise BadPredicamentError(10, filename, self.name,
-                                      line, key, 'profile')
+            raise BadPredicamentError(10, filename, name, line, key)
         if type(Predicament.variables[key]) != int:
-            raise BadPredicamentError(38, filename, self.name, line, key, 'subtract from')
+            raise BadPredicamentError(38, filename, name, line, key, 'subtract from')
 
         if readingTick==-1:
             try:
@@ -525,11 +537,11 @@ def doMath(filename, name, line, operator, readingTick=-1,self=None):
             self._events.append(('subtract','%s=%s' % (key, value)))
             self.eventNums.append(readingTick)
 
-def computeIf(fp, name, line):
+def computeIf(fp, name, line, readingTick=None):
     # here's where I jumped through a flaming hoop
     # to avoid changing ninedotnine's doIf() code :P
     global readingIfLevel
-    if doIf(fp, name, line):
+    if doIf(fp, name, line, readingTick):
         # if the condition is true, read normally
         readingIfLevel += 1
     else:
@@ -537,7 +549,7 @@ def computeIf(fp, name, line):
         # discard lines until we reach end if
         skipIf(fp, name)
 
-def doIf(fp, name, line):
+def doIf(fp, name, line, readingTick=None):
     # code from 2013
     # figures out whether to read conditional stuff in pred definitions
     # first, parse the line itself to get key and value
@@ -564,7 +576,14 @@ def doIf(fp, name, line):
 
     # make sure key exists
     if key not in Predicament.variables.keys():
-        raise BadPredicamentError(10, fp.name, name, line, key)
+        if readingTick:
+            # Dudes have to read all the If statements
+            # every tick, so this variable might be created
+            # in the future for another if statement
+            return False
+        else:
+            # freak the hell out if this is a Predicament
+            raise BadPredicamentError(10, fp.name, name, line, key)
 
     # wtf
     if value.startswith('>') or value.startswith('<'):
@@ -675,7 +694,7 @@ def getNonBlankLine(fp):
     return line
 
 # method what replaces variables' plaintext representations
-# with the actual variable when getting text from predfile
+# with the actual variable when getting text from a file
 def replaceVariables(text):
     if '%' not in text or '%' not in text[text.index('%')+1:]:
         # '%' doesn't appear or doesn't appear again after appearing
@@ -683,10 +702,18 @@ def replaceVariables(text):
     start = text.index('%')
     end = text[start+1:].index('%') + start + 1
     if text[start+1:end] not in Predicament.variables:
-        print("can't find %s in Predicament variables" % text[start+1:end])
-        quit()
-    return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
+        # replace variable with nothing if it doesn't exist
+        return replaceVariables(text[end+1:])
+    else:
+        return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
                             + text[end+1:])
+
+def giveNumberIfPossible(value):
+    try:
+        value = int(value)
+    except ValueError:
+        pass
+    return value
 
 def findStartPoint(fp, lineNo, lookingFor, name):
     # cProfile says this causes barely any overhead even with 1000s of lines
@@ -750,7 +777,7 @@ prederrors = (
     "%s doesn't have an end of predicament for %s",
     "data directory %s\nis nonexistent or unreadable. wtf",
     "%s has the type '%s', which is insane.",
-    "in %s:\npredicament %s has the following line:\n%s\n'%s' is not a number variable.", # 10
+    "in %s:\npredicament %s has the following line:\n%s\nbut the variable '%s' doesn't exist\nmaybe you made a typo somewhere", # 10
     "in %s:\n%s has %s after if.\nyou forgot to use a keyword, used an invalid keyword,\nor didn't include a condition after 'or' or 'and'.\nkeywords other than 'then' must precede an if.\nonly use 'then' after the final if condition.",
     "in %s, there is an unexpected 'end if' in predicament %s",
     "reached end of predicament %s before 'end if'.\nconditionals must remain within originating predicament.",
@@ -761,7 +788,7 @@ prederrors = (
     "in %s, %s has no '=' on this line:\n%s\nmaybe you made a typo?",
     "%s refers to a '%s.wav'. there was an error accessing\nor playing this file. did you mistype the name?",
     "predicament %s tries to set %s to '%s'\nbut %s is supposed to be a number!", # 20
-    "predicament %s tries to set '%s' to a value\nbut that variable does not exist!",
+    "predicament %s tries to set '%s' to a value\nbut that variable could not be created!",
     "predicament %s refers to %s.map,\nwhich doesn't exist in %s! >:(\nwhat kind of game are you playing at?",
     "a movement or action directive in predicament %s contains this line:\n %s\nwhich does not have a -> in it.\nmovement and action must declare the label, then ->,\nthen the name of the predicament which the labelled movement\nor action leads to. for example:\n Leave the house. -> outside",
     "in %s\npredicament %s has the following condition:\n%s\nbut %s is not of a comparable type\nif it was intended to contain a word, it will always contain a word\nsetting it to a number will not allow you to perform comparisons",
@@ -776,9 +803,9 @@ prederrors = (
     "in %s, predicament %s has this line:\n%s\n%s is not sensible.\nquest entries must be set to keywords:\ninitial, known, started, done, failed\nor 'progress' followed by a number",
     "in %s, predicament %s\ntries to %s %s from player.\nthis item does not exist.",
     "in %s, predicament %s\ntries to take a pack of ketchup from player.\nthe player is saving that for a rainy day.\nthey refuse to let go of it.",
-    "in %s, predicament %s\ndoes not have a 'to' on this line:\n%s\nyou must add TO a variable, using the word TO.", #35
-    "in %s, predicament %s\ndoes not have a 'from' on this line:\n%s\nyou must subtract FROM a variable, using the word FROM.",
-    "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' is not an integer. you must use a whole number\nor a profile entry that contains a whole number.",
+    "in %s, predicament %s\ndoes not have a '%s' on this line:\n%s\nyou must operate %s a variable, using that word.", #35
+    "",
+    "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' is not an integer. you must use a whole number\nor a variables that is a whole number.",
     "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' does not refer to a number. you can't %s it.",
     "",
     "", #40

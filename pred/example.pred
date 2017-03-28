@@ -1,27 +1,32 @@
 version = 1
 # example predicament to show all funtimes features
+# most syntax is simple: keyword = value
 
 predicament = start
+    # this is the default startpoint for a game
     type = goto -> entry
-    set girlname = You went through a goto!
-    set progress = 0
-/predicament
+    set entrymsg = You entered through Funplayer.py instead of Main.py!
+/predicament this line ends a predicament definition
 
 predicament = entry
-    text = This is a test. %girlname%
-    text = progress is %progress%
-    add 10 to progress
-    text = progress is %progress%
-    text = statements in predicaments execute immediately
+    # % is used to insert variables in text
+    # the variable will print as nothing if it doesn't exist
+    text = %entrymsg% Welcome to FUNTIMES!
+    text =
+    set number = random
+    set progress = random
+    text = Two random numbers: %number% %progress%
+    add 10 to number
+    text = first number + 10 is %number%
     action = OK -> basicstuff
-/predicament entry
+/predicament anything else on this line isn't read, like a comment
 
 predicament = basicstuff
-    set progress = random
+    # now let's use some if statements!!!
     if progress is < 41
-        then
+        then <-- must be on its own line
         set girlname = Megan
-    /if
+    /if  <-- this line ends the if statement
     if progress is > 40
         and
     if progress is < 61
@@ -71,8 +76,7 @@ predicament = walkaround2
     ##  ############
     /map
     dude = C -> chair
-
-    text = This is Room 2.
+    text = This is== Room 2.
 
     right = Hey -> walkaround1
     up = walkaround2N

@@ -2,8 +2,14 @@ version = 1
 # dudes are tick lovers
 
 dude = chair
-    tick = 5
-        text = It is tick #5
+    tick = 1
+        set tassaron = 2
+    /tick
+    tick = 3
+        if tassaron is 2
+            then
+            text = tassaron is 2
+        /if
     /tick
 /dude
 
