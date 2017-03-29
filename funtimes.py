@@ -15,6 +15,8 @@
 #
 # TODO: replaceVariables in doSet for setting to another variable
 # TODO: an object for if could probably track its state instead of globals
+# TODO: different fatality levels for BadPredicamentError & option to ignore minor
+# TODO: make generator for returning relevant lines from a pred or dude file
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -115,9 +117,9 @@ class Predicament:
 
                 #=~=~=~=~ NORMAL STUFF THAT USES =
                 try:
-                    key, value = splitLine(line,'=')
+                    key, value = line.split('=',1)
                 except ValueError:
-                    raise BadPredicamentError(18, filename, self.name, line)
+                    raise BadPredicamentError(18, self.filename, self.name, line)
 
                 key = key.rstrip().lower()
                 if key == 'predicament':
@@ -163,10 +165,6 @@ class Predicament:
         elif busy:
             # should always hit error 4 before this, so it may be redundant
             raise BadPredicamentError(7, self.filename, self.name)
-
-    # this isn't used anywhere, but handy for debugging
-    def __str__(self):
-        return '< Predicament %s: %s >' % (self.name, self._text)
 
     '''
         Parsing methods for the initialization
@@ -226,6 +224,10 @@ class Predicament:
         self._pregenDudes.append(Dude(thisDudesName.strip()))
         self.dudesymbols.append(thisDudesSymbol.strip())
 
+    # this isn't used anywhere, but handy for debugging
+    def __str__(self):
+        return '< Predicament %s: %s >' % (self.name, self._text)
+
     @staticmethod
     def readMap(fp, name, line):
         # fp and line are things we need to iterate through the pred file
@@ -246,16 +248,15 @@ class Predicament:
     # 2017/03/25 using properties to stop other modules breaking when this changes
     @property
     def actions(self):
-        return [(label, goto) for label, goto in zip(self.actionLabel, self.actionGoto)]
+        return ((label, goto) for label, goto in zip(self.actionLabel, self.actionGoto))
 
     @property
     def arrows(self):
-        return [(label, goto) for label, goto in zip(self.arrowLabel, self.arrowGoto)]
+        return ((label, goto) for label, goto in zip(self.arrowLabel, self.arrowGoto))
 
     @property
     def text(self):
-        # if we do replaceVariables() at this stage, it won't expand variables
-        # until the pred is interpreted by funplayer. which could be a feature
+        # text is stored raw so variables can be expanded later
         return self._text
 
     @property
@@ -263,16 +264,14 @@ class Predicament:
         return self.predmap
 
     @property
-    # returns list of dudenames belonging to this pred
     def dudes(self):
-        return [dudename for dudesymbol, dudename in self._dudes]
+        return (dudename for dudesymbol, dudename in self._dudes)
 
     def dudesForTick(self, tickNum):
         '''
         returns list of dudenames who want to do something this tickNum
         also small arachnids, part of the order Parasitiformes
         '''
-        returnlist = []
         # iterate through our dudes
         for dudeObj in self._pregenDudes:
             if tickNum=='everytick':
@@ -281,8 +280,7 @@ class Predicament:
             elif tickNum not in dudeObj.ticks:
                 continue
             # return this dude if relevant to the requested tick
-            returnlist.append(dudeObj.name)
-        return returnlist
+            yield dudeObj.name
 
 
 class Dude:
@@ -343,7 +341,7 @@ class Dude:
 
                 #=~=~=~=~ NORMAL STUFF THAT USES =
                 try:
-                    key, value = splitLine(line, '=')
+                    key, value = line.split('=',1)
                 except ValueError:
                     raise BadPredicamentError(18, filename, self.name, line)
                 key = key.rstrip().lower()
@@ -414,14 +412,30 @@ class Dude:
             returnlist.append((eventType, event))
         return returnlist
 
-def splitLine(line, splitOn):
-    '''split line on first occurence of splitOn char, ignore following'''
-    stuff = line.split('=')
-    key = stuff[0]
-    # first time using join() and WOW this is cool:
-    value = "".join(textpart for i, textpart in enumerate(stuff) if i != 0)
-    return key, value
 
+def replaceVariables(text):
+    '''
+    replaces '%varname%' in a string with a class variable in Predicament
+    stored in the Predicament.variables dict with varname as the key
+    '''
+    if '%' not in text or '%' not in text[text.index('%')+1:]:
+        # '%' doesn't appear or doesn't appear again after appearing
+        return text
+    start = text.index('%')
+    end = text[start+1:].index('%') + start + 1
+    if text[start+1:end] not in Predicament.variables:
+        # replace variable with nothing if it doesn't exist
+        return replaceVariables(text[end+1:])
+    else:
+        return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
+                            + text[end+1:])
+
+def giveNumberIfPossible(value):
+    try:
+        value = int(value)
+    except ValueError:
+        pass
+    return value
 
 def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
     # returns True if it successfully parses a weird line
@@ -443,30 +457,12 @@ def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
         doSet(filename, name, line, readingTick,self)
         return True
     elif line.strip().startswith("add "):
-        doMath(filename, name, line, 'add', readingTick,self)
+        doMath(filename, name, line, 'add', 'to', readingTick,self)
         return True
     elif line.strip().startswith("subtract "):
-        doMath(filename, name, line, 'subtract', readingTick,self)
+        doMath(filename, name, line, 'subtract', 'from', readingTick,self)
         return True
     return False
-
-def tryToOpen(dir_, filetype, name):
-    try:
-        if filetype=='pred':
-            filename, lineNo = predicaments[name]
-        elif filetype=='dude':
-            filename, lineNo = dudes[name]
-        else:
-            raise KeyError
-    except KeyError:
-        # if the predicament isn't in our master dictionary...
-        raise BadPredicamentError(3, name)
-    try:
-        open(os.path.join(dir_, filename), 'r')
-    except:
-        raise BadPredicamentError(15, filename, name)
-
-    return filename, lineNo
 
 def doSet(filename, predname, line, readingTick=-1,self=None):
     # readingTick defaults to -1 for Predicaments
@@ -492,8 +488,12 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
         if type(Predicament.variables[key]) in (int, float):
             newvalue = int(newvalue)
     except KeyError:
-            # nonexistaent variable!
-            newvalue = giveNumberIfPossible(newvalue)
+        # nonexistaent variable!
+        newvalue = giveNumberIfPossible(newvalue)
+    except TypeError:
+        # setting number variable to a string variable
+        # TODO TODO TODO
+        pass
 
     if readingTick==-1:
         # this is happening immediately
@@ -505,66 +505,49 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
         self._events.append(('set','%s=%s' % (key, newvalue)))
         self.eventNums.append(readingTick)
 
-def doMath(filename, name, line, operator, readingTick=-1,self=None):
+def doMath(filename, name, line, operator, preposition, readingTick=-1,self=None):
+    '''args: filename, name, line, add/subtract, to/from, readingTick, DudeObject'''
     # readingTick defaults to -1 for Predicaments
     # when readingTick is 0 or higher, it's for use by Dudes
-    # TODO: clean this up, there's much copy-paste
-    if operator=='add':
-        try:
-            # variable assignment literally backwards, because that's more fun
-            value, key = line[4:].split('to')
-            value = value.strip()
-            key = key.strip()
-        except ValueError:
-            raise BadPredicamentError(35, filename, name, line,'to','to')
-        if type(Predicament.variables[key]) != int:
-            raise BadPredicamentError(38, filename, name, line, key, 'add to')
-        # make sure variable exists
-        if key not in Predicament.variables:
-            raise BadPredicamentError(10, filename, name, line, key)
+    # TODO: reduce stupid number of arguments
+    try:
+        # variable assignment literally backwards, because that's more fun
+        # square bracket weirdness removes the operator from the line
+        start = len(operator)+1
+        value, key = line[start:].split(' %s ' % preposition)
+        value = value.strip()
+        key = key.strip()
+    except ValueError:
+        raise BadPredicamentError(35, filename, name, line,preposition,preposition)
+    if type(Predicament.variables[key]) != int:
+        raise BadPredicamentError(38, filename, name, line, key, '%s %s' % (operator, preposition))
+    # make sure variable exists
+    if key not in Predicament.variables:
+        raise BadPredicamentError(10, filename, name, line, key)
 
-        # if we're doing this immediately
-        if readingTick==-1:
-            # make it a number
-            try:
-                value = int(value)
-            except TypeError:
-                # it's not a goddamn number
-                raise BadPredicamentError(37, filename, name, line, value)
+    # if we're doing this immediately
+    if readingTick==-1:
+        # make it a number
+        try:
+            value = int(value)
+        except TypeError:
+            # it's not a goddamn number
+            raise BadPredicamentError(37, filename, name, line, value)
+        if operator=='add':
             Predicament.variables[key]+=value
-        elif readingTick==0:
-            #dude object has been passed to us
-            self.everytick.append(('add','%s=%s' % (key, value)))
-        elif readingTick>0:
-            self._events.append(('add','%s=%s' % (key, value)))
-            self.eventNums.append(readingTick)
+        elif operator=='subtract':
+            Predicament.variables[key]-=value
+        else:
+            raise BadPredicamentError()
+    elif readingTick==0:
+        #dude object has been passed to us
+        self.everytick.append(('%s' % operator,
+                               '%s=%s' % (key, value)))
+    elif readingTick>0:
+        self._events.append(('%s' % operator,
+                             '%s=%s' % (key, value)))
+        self.eventNums.append(readingTick)
 
-    elif operator=='subtract':
-        try:
-            # also literally backwards, because that's more fun
-            value, key = line[9:].split('from')
-            value = value.strip()
-            key = key.strip()
-        except ValueError:
-            raise BadPredicamentError(35, filename, name, line,'from','from')
-        if key not in Predicament.variables:
-            raise BadPredicamentError(10, filename, name, line, key)
-        if type(Predicament.variables[key]) != int:
-            raise BadPredicamentError(38, filename, name, line, key, 'subtract from')
-
-        if readingTick==-1:
-            try:
-                value = int(value)
-            except TypeError:
-                # it's not a goddamn number
-                raise BadPredicamentError(37, filename, name, line, value)
-            Predicament.variables[key] -= value
-        elif readingTick==0:
-            #dude object has been passed to us
-            self.everytick.append(('subtract','%s=%s' % (key, value)))
-        elif readingTick>0:
-            self._events.append(('subtract','%s=%s' % (key, value)))
-            self.eventNums.append(readingTick)
 
 def computeIf(fp, name, line, readingTick=None):
     # here's where I jumped through a flaming hoop
@@ -712,6 +695,24 @@ def skipIf(fp, predname):
         or nextline.find("/dude") == 0:
             raise BadPredicamentError(13, predname)
 
+def tryToOpen(dir_, filetype, name):
+    try:
+        if filetype=='pred':
+            filename, lineNo = predicaments[name]
+        elif filetype=='dude':
+            filename, lineNo = dudes[name]
+        else:
+            raise KeyError
+    except KeyError:
+        # if the predicament isn't in our master dictionary...
+        raise BadPredicamentError(3, name)
+    try:
+        open(os.path.join(dir_, filename), 'r')
+    except:
+        raise BadPredicamentError(15, filename, name)
+
+    return filename, lineNo
+
 def getNonBlankLine(fp):
     line = ''
     while line == '' or line.startswith("#"):
@@ -722,32 +723,10 @@ def getNonBlankLine(fp):
         line = line.strip()
     return line
 
-# method what replaces variables' plaintext representations
-# with the actual variable when getting text from a file
-def replaceVariables(text):
-    if '%' not in text or '%' not in text[text.index('%')+1:]:
-        # '%' doesn't appear or doesn't appear again after appearing
-        return text
-    start = text.index('%')
-    end = text[start+1:].index('%') + start + 1
-    if text[start+1:end] not in Predicament.variables:
-        # replace variable with nothing if it doesn't exist
-        return replaceVariables(text[end+1:])
-    else:
-        return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
-                            + text[end+1:])
-
-def giveNumberIfPossible(value):
-    try:
-        value = int(value)
-    except ValueError:
-        pass
-    return value
-
 def findStartPoint(fp, lineNo, lookingFor, name):
     # cProfile says this causes barely any overhead even with 1000s of lines
     # we could do something like this: http://stackoverflow.com/a/620492
-    # however it adds extra complexity w/o much gain, unless file is collosal
+    # however it adds extra complexity w/o any gain, unless file is collosal
     busy = False # whether we are currently reading something
     # now get to the right line and test it
     for line in fp:
