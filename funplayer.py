@@ -17,9 +17,6 @@
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import funtimes
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
 
 def play(predname='start'):
     global predicaments
@@ -27,7 +24,6 @@ def play(predname='start'):
         # make a Predicament for this predicament if there is none
         predicaments[predname] = Predicament(predname)
     predicaments[predname].play()
-
 
 class Predicament:
     # does computation of Predicament objects created by funtimes module
@@ -100,7 +96,9 @@ class Dude:
 # GTK+ Funwindow for Funplayer
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 def main():
     Gtk.main()
