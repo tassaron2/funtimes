@@ -17,6 +17,7 @@
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import funtimes
+import textwrap
 
 def play(predname='start'):
     global predicaments
@@ -47,6 +48,8 @@ class Predicament:
         # make the map area
         window.tilemap.create(self.pred.tilemap, self.pred.tileForChar)
         # make the text area
+        if self.pred.mapname:
+            window.name.newName(self.pred.mapname)
         for line in self.pred.text:
             window.text.add(line)
 
@@ -57,8 +60,8 @@ class Predicament:
         for label, goto in self.pred.arrows:
             # disabled directions have None as goto
             window.arrows.add(label, goto)
-        # make a link back to this predicament ('Do nothing')
-        window.arrows.add('Do nothing', self.pred.name)
+        # make a link back to this predicament ('Wait')
+        window.arrows.add('Wait', self.pred.name)
         # make the action buttons
         for label, goto in self.pred.actions:
             window.actions.add(label, goto)
@@ -112,11 +115,14 @@ def goto(*args):
     play(newpred)
 
 class Funwindow(Gtk.Window):
+    height = 320
+    width = 512
+    
     def __init__(self):
         # call mom's initializer first :)
         Gtk.Window.__init__(self)
         # decorate the window
-        self.set_size_request(400,400)
+        self.set_size_request(Funwindow.width, Funwindow.height)
         self.set_border_width(6)
         # fill it with empty boxes!!
         self.body = Body()
@@ -126,9 +132,7 @@ class Funwindow(Gtk.Window):
 
     def clear(self):
         # empty the window contents
-        self.remove(self.body)
-        self.body = Body()
-        self.add(self.body)
+        self.body.clear()
 
     def tick(self):
         self._tick+=1
@@ -145,6 +149,9 @@ class Funwindow(Gtk.Window):
     def text(self):
         return self.body.textBox
     @property
+    def name(self):
+        return self.body.textBox
+    @property
     def actions(self):
         return self.body.actionButtons
     @property
@@ -156,25 +163,60 @@ class Body(Gtk.Box):
     def __init__(self):
         Gtk.Box.__init__(self)
         self.set_orientation(Gtk.Orientation.VERTICAL)
+        # THINGS THAT ARE CREATED JUST ONCE
         # split the screen into thirds
-        topBox = Gtk.Box(); midBox = Gtk.Box(); lowBox = Gtk.Box()
-        self.pack_start(topBox, False, False, 0)
-        self.pack_start(midBox, False, False, 0)
-        self.pack_start(lowBox, False, False, 0)
+        self.topBox = Gtk.Box(); self.lowBox = Gtk.Box()#; self.midBox = Gtk.Box()
+        self.pack_start(self.topBox, False, False, 0)
+        #self.pack_start(self.midBox, False, False, 0)
+        self.pack_start(self.lowBox, False, False, 0)
         # make the top box
-        self.mapBox = MapBox(); self.textBox = TextBox()
-        topBox.pack_start(self.mapBox, False, False, 0)
-        topBox.pack_start(self.textBox, False, False, 0)
+        self.makeTopBox()
+        # make a scrolling window for the text
+        self.textBox = TextBox()
+        textWindow = Gtk.ScrolledWindow()
+        textWindow.connect('size-allocate', self.scrollTextBox)
+        textWindow.add_with_viewport(self.textBox)
+        textWindow.set_size_request(Funwindow.width-256, Funwindow.height-64)
+        self.topBox.pack_start(textWindow, False, False, 0)
         # make the low box
+        self.makeLowBox()
+
+    def scrollTextBox(self, widget, event):
+        scroll = widget.get_vadjustment()
+        scroll.set_value(scroll.get_upper() - scroll.get_page_size())
+
+    def clear(self):
+        for box in self.boxes():
+            if box != 'textBox':
+                # TODO: make less crap
+                if box=='mapBox':
+                    self.topBox.remove(eval('self.%s' % box))
+                else:
+                    self.lowBox.remove(eval('self.%s' % box))
+        self.makeTopBox()
+        self.makeLowBox()
+
+    def boxes(self):
+        # returns only the lowest-level boxes
+        highLevelBoxes = ['topBox','midBox','lowBox']
+        return (child for child in self.__dict__ if child not in highLevelBoxes)
+
+    def makeTopBox(self):
+        self.mapBox = MapBox()
+        self.topBox.pack_start(self.mapBox, False, False, 0)
+
+    def makeLowBox(self):
         self.arrowButtons = ActionButtons()
         self.actionButtons = ActionButtons()
-        lowBox.pack_start(self.arrowButtons, False, False, 0)
-        lowBox.pack_start(self.actionButtons, False, False, 0)
+        self.lowBox.pack_start(self.arrowButtons, False, False, 0)
+        self.lowBox.pack_start(self.actionButtons, False, False, 0)
+        
 
 class ActionButtons(Gtk.Box):
     # area of the window where buttons go for actions
     def add(self, label, gotoPred):
         button = Gtk.Button(label=label)
+        button.set_size_request(64, 64)
         if gotoPred:
             button.connect('clicked', goto, gotoPred)
         else:
@@ -189,7 +231,18 @@ class TextBox(Gtk.Box):
 
     # text is printed here
     def add(self, item):
-        self.pack_start(Gtk.Label(item), False, False, 0)
+        lines = textwrap.wrap(item,34)
+        for line in lines:
+            widget = Gtk.Label(line)
+            widget.set_halign(Gtk.Align.START)
+            self.pack_start(widget, False, False, 1)
+
+    def newName(self, name):
+        widget = Gtk.Label()
+        widget.set_markup('<b>%s</b>' % name)
+        widget.set_halign(Gtk.Align.START)
+        self.pack_start(widget, False, False, 1)
+
 
 class MapBox(Gtk.Grid):
     def __init__(self):

@@ -19,6 +19,7 @@
 # TODO: different fatality levels for BadPredicamentError & option to ignore minor
 # TODO: make generator for returning relevant lines from a pred or dude file
 # TODO: type = textinput -> result
+# TODO: convenient 'on first entry' entry = text
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -49,6 +50,8 @@ class Predicament:
     numPredicaments = 0
     # tiles for objects that are not dudes
     tiles = { '#' : '~/wall.png',
+              '>' : '~/wallH.png',
+              '^' : '~/wallV.png',
               ' ' : '~/floor.png',
             }
     # dictionary of pred variables
@@ -266,7 +269,7 @@ class Predicament:
     @property
     def arrows(self):
         return ((label, goto) for label, goto in zip(self.arrowLabel, self.arrowGoto))
-
+    
     @property
     def text(self):
         return self._text

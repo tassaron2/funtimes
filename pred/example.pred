@@ -11,8 +11,9 @@ predicament = start
 predicament = entry
     # % is used to insert variables in text
     # the variable will print as nothing if it doesn't exist
-    text = %entrymsg% Welcome to FUNTIMES!
-    text =
+    
+    name = Welcome to FUNTIMES!
+    text = %entrymsg%
     set number = random
     set progress = random
     text = Two random numbers: %number% %progress%
@@ -22,6 +23,7 @@ predicament = entry
 /predicament anything else on this line isn't read, like a comment
 
 predicament = basicstuff
+    name = Welcome to FUNTIMES!
     # now let's use some if statements!!!
     if progress is < 41
         then <-- must be on its own line
@@ -52,22 +54,22 @@ predicament = basicstuff
 
 predicament = walkaround1
     map =
-    ################
-    #              #
-    #              #
-    #              #
-    #       A      #
-    #              #
-                   #
-                   #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    ################
+    #>>>>>>>>>>>>>>#
+    ^              ^
+    ^              ^
+    ^              ^
+    ^       A      ^
+    #              ^
+                   ^
+                   ^
+    #              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    #>>>>>>>>>>>>>>#
     /map
     text = room 1
     dude = A -> talker
@@ -78,22 +80,22 @@ predicament = walkaround2
     # to draw this map correctly (with floor tiles)
     # had to disable 'strip trailing spaces'
     map =
-    #######   ######
-    #              #
-    #              #
-    #              #
-    #   C          #
-    #              #
-    #               
-    #               
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    ################
+    #>>>>>>  >>>>>>#
+    ^              ^
+    ^              ^
+    ^              ^
+    ^   C          ^
+    ^              ^
+    ^               
+    ^               
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    #>>>  >>>>>>>>>#
     /map
     dude = C -> chair
     text = This is== Room 2.
@@ -105,22 +107,22 @@ predicament = walkaround2
 
 predicament = walkaround2N
     map =
-    ################
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #######   ######
+    #>>>>>>>>>>>>>>#
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    #>>>>>>  >>>>>>#
     /map
 
     down = walkaround2
@@ -129,22 +131,22 @@ predicament = walkaround2N
 
 predicament = walkaround2S
     map =
-    ##  ############
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    #              #
-    ################
+    #>>>   >>>>>>>>#
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    #>>>>>>>>>>>>>>#
     /map
 
     up = walkaround2
