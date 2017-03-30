@@ -51,12 +51,32 @@ predicament = basicstuff
 /predicament
 
 predicament = walkaround1
+    map =
+    ################
+    #              #
+    #              #
+    #              #
+    #       A      #
+    #              #
+                   #
+                   #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    #              #
+    ################
+    /map
     text = room 1
     dude = A -> talker
     left = walkaround2
 /predicament
 
 predicament = walkaround2
+    # to draw this map correctly (with floor tiles)
+    # had to disable 'strip trailing spaces'
     map =
     #######   ######
     #              #
@@ -64,8 +84,8 @@ predicament = walkaround2
     #              #
     #   C          #
     #              #
-    #
-    #
+    #               
+    #               
     #              #
     #              #
     #              #
@@ -73,12 +93,12 @@ predicament = walkaround2
     #              #
     #              #
     #              #
-    ##  ############
+    ################
     /map
     dude = C -> chair
     text = This is== Room 2.
 
-    right = Hey -> walkaround1
+    right = Back -> walkaround1
     up = walkaround2N
     down = walkaround2S
 /predicament

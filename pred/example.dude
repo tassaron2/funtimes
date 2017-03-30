@@ -2,6 +2,7 @@ version = 1
 # dudes are tick lovers
 
 dude = chair
+    tile = ~/talker.png
     tick = 1
         set tassaron = 2
     /tick
@@ -14,6 +15,7 @@ dude = chair
 /dude
 
 dude = talker
+    tile = ~/talker.png
     tick = 1
         set progress = 42
         text = tick1: variable changed to 42

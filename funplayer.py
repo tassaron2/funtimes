@@ -45,7 +45,7 @@ class Predicament:
         # knock the boxes over!!
 
         # make the map area
-        window.tilemap.create(self.pred.tilemap)
+        window.tilemap.create(self.pred.tilemap, self.pred.tileForChar)
         # make the text area
         for line in self.pred.text:
             window.text.add(line)
@@ -196,16 +196,19 @@ class MapBox(Gtk.Grid):
         super().__init__()
 
     # makes a grid of tiles using a list of map rows
-    def create(self, tilemap):
+    def create(self, tilemap, tileForChar):
         if tilemap:
             for row, line in enumerate(tilemap):
                 for col, char in enumerate(line):
-                    self.attach(Tile(char), col, row, 1, 1)
+                    self.attach(self.tile(tileForChar(char), char), col, row, 1, 1)
 
-class Tile(Gtk.Label):
-    # TODO: look up a tile for this character
-    def __init__(self, char):
-        super().__init__(char)
+    def tile(self, pathtofile, char):
+        if pathtofile==char:
+            thisTile = Gtk.Label(char)
+        else:
+            thisTile = Gtk.Image()
+            thisTile.set_from_file(pathtofile)
+        return thisTile
 
 class OKWindow(Gtk.Dialog):
     # a window that returns nothing, just shows a message and goes away

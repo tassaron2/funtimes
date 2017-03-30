@@ -2,21 +2,23 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # funtimes.py
-# last modified 2017/03/28
+# last modified 2017/03/30
 # resurrected by tassaron 2017/03/23
 # from code by ninedotnine & tassaron 2013/05/24-2013/06/30
 # inspired by a batch file game made in 2008
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
-# FUNTIMES parser for Predicament files
-# has a dictionary of predicament titles within Pred files
-# creates Predicament objects playable by funplayer.py
+# FUNTIMES parser for Predicament files & associated stuff
+# parses files in PREDDIR and DUDEDIR filepaths
+# does nothing to /src, just references it in replaceTilde()
+# defines objects used by funplayer.py to play a game
 #
 # TODO: replaceVariables in doSet for setting to another variable
 # TODO: an object for if could probably track its state instead of globals
 # TODO: different fatality levels for BadPredicamentError & option to ignore minor
 # TODO: make generator for returning relevant lines from a pred or dude file
+# TODO: type = textinput -> result
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -45,6 +47,10 @@ class Predicament:
 
     # pointless class variable: number of generated Predicaments
     numPredicaments = 0
+    # tiles for objects that are not dudes
+    tiles = { '#' : '~/wall.png',
+              ' ' : '~/floor.png',
+            }
     # dictionary of pred variables
     variables = {}
 
@@ -220,9 +226,12 @@ class Predicament:
             thisDudesSymbol, thisDudesName = value.split('->')
         except ValueError:
             raise BadPredicamentError(42, self.filename, self.name, value)
-        self._dudes.append((thisDudesSymbol.strip(), thisDudesName.strip()))
-        self._pregenDudes.append(Dude(thisDudesName.strip()))
-        self.dudesymbols.append(thisDudesSymbol.strip())
+        if thisDudesSymbol.strip() not in self.dudesymbols:
+            self._pregenDudes.append(Dude(thisDudesName.strip()))
+            self._dudes.append((thisDudesSymbol.strip(), thisDudesName.strip()))
+            self.dudesymbols.append(thisDudesSymbol.strip())
+        else:
+            raise BadPredicamentError(44, self.filename, self.name)
 
     # this isn't used anywhere, but handy for debugging
     def __str__(self):
@@ -242,10 +251,14 @@ class Predicament:
                 break
             else:
                 # if the map isn't done yet, add this line onto the map
-                maplist.append(line.strip())
-        return maplist
+                # strip out the terminating newline character on the right
+                maplist.append(line[:-1])
 
-    # 2017/03/25 using properties to stop other modules breaking when this changes
+        # deduce how much indentation to remove from the left
+        longest = max(maplist)
+        indentSize = len(longest) - len(longest.lstrip())
+        return [line[indentSize:] for line in maplist]
+
     @property
     def actions(self):
         return ((label, goto) for label, goto in zip(self.actionLabel, self.actionGoto))
@@ -256,12 +269,27 @@ class Predicament:
 
     @property
     def text(self):
-        # text is stored raw so variables can be expanded later
         return self._text
 
     @property
     def tilemap(self):
         return self.predmap
+
+    def tileForChar(self, char):
+        '''
+        Receives a character from funplayer while it's drawing a tilemap
+        This function returns the tile for the dude corresponding to the
+        char provided for this Predicament.
+        '''
+        # first check if it's a wall or floor
+        if char in Predicament.tiles:
+            return replaceTilde(Predicament.tiles[char])
+        # it must be a dude!
+        for dudeSymbol, dudeObj in zip(self.dudesymbols, self._pregenDudes):
+            if dudeSymbol==char:
+                # aha! it's this dude
+                return replaceTilde(dudeObj.tile)
+        return char
 
     @property
     def dudes(self):
@@ -298,7 +326,8 @@ class Dude:
 
         # name used to generate this dude
         self.name = name
-        self.text = []
+        # fullpath to tilefile, always a string
+        self.tile = 'None'
         # list of ticks this Dude wants in on
         self.ticks = []
         # events this dude wants to inject at certain tickNo
@@ -357,6 +386,9 @@ class Dude:
                 elif key == 'text':
                     self._parse_text(value, readingTick)
                     continue
+                elif key == 'tile':
+                    self.tile = value.strip()
+                    continue
     '''
         Parsing functions for the init method
     '''
@@ -364,7 +396,8 @@ class Dude:
         # remove only the first space if any
         if value and value[0] == ' ':
             value = value[1:]
-        # add to event queue
+        # add raw text to event queue
+        # variables in text will be expanded later 'in a tick'
         if readingTick!=0:
             # this event is for specific tick
             self._events.append(('text',value))
@@ -373,21 +406,23 @@ class Dude:
             # this event is for every tick
             self.everytick.append(('text',value))
 
-    # returns events for the given tick as a list
+
+    '''
+        EVENTS
+    '''
     def events(self, tick):
-        returnlist = []
+        '''returns events for the given tick number'''
         if tick=='everytick':
             for eventType, event in self.everytick:
-                returnlist = Dude.doEvent(eventType, event, returnlist)
+                yield Dude.doEvent(eventType, event)
         else:
             for eventNum, event in zip(self.eventNums, self._events):
                 # if this event is for the given tick...
                 if eventNum==tick:
-                    returnlist = Dude.doEvent(event[0],event[1], returnlist)
-        return returnlist
+                    yield Dude.doEvent(event[0],event[1])
 
     @staticmethod
-    def doEvent(eventType, event, returnlist):
+    def doEvent(eventType, event):
         # do events in this module as they're being returned to funplayer
         if eventType in ('set','add','subtract'):
             key, value = event.split('=')
@@ -407,10 +442,9 @@ class Dude:
         # eventTypes we do work for still get passed through
         # in case funplayer wants to do something else with em too
         if eventType=='text':
-            returnlist.append((eventType, replaceVariables(event)))
+            return eventType, replaceVariables(event)
         else:
-            returnlist.append((eventType, event))
-        return returnlist
+            return eventType, event
 
 
 def replaceVariables(text):
@@ -429,6 +463,12 @@ def replaceVariables(text):
     else:
         return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
                             + text[end+1:])
+def replaceTilde(text):
+    if text.startswith('~'):
+        mypath = os.path.dirname(os.path.realpath(__file__))
+        return '%s/%s/%s' % (mypath, 'src', text[1:])
+    else:
+        return text
 
 def giveNumberIfPossible(value):
     try:
@@ -819,7 +859,8 @@ prederrors = (
     "", #40
     "in %s\npredicament %s is of 'goto' type\nbut it has no destination after '->'",
     "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet.",
-    "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id"
+    "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id",
+    "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
 )
 
 PREDDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pred')
