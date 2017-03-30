@@ -50,6 +50,8 @@ class Predicament:
         # make the text area
         if self.pred.mapname:
             window.name.newName(self.pred.mapname)
+        else:
+            window.name.newName('                ')
         for line in self.pred.text:
             window.text.add(line)
 
@@ -92,7 +94,10 @@ class Dude:
     def tick(self, tick):
         for eventType, event in self.dude.events(tick):
             if eventType=='text':
-                window.text.add(event)
+                if self.dude.nick:
+                    window.text.add(event, self.dude.nick)
+                else:
+                    window.text.add(event)
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -116,7 +121,7 @@ def goto(*args):
 
 class Funwindow(Gtk.Window):
     height = 320
-    width = 512
+    width = 576
     
     def __init__(self):
         # call mom's initializer first :)
@@ -182,6 +187,7 @@ class Body(Gtk.Box):
         self.makeLowBox()
 
     def scrollTextBox(self, widget, event):
+        '''keeps scrolledWindow scrolled to the bottom'''
         scroll = widget.get_vadjustment()
         scroll.set_value(scroll.get_upper() - scroll.get_page_size())
 
@@ -193,6 +199,9 @@ class Body(Gtk.Box):
                     self.topBox.remove(eval('self.%s' % box))
                 else:
                     self.lowBox.remove(eval('self.%s' % box))
+            elif box=='textBox':
+                for label in self.textBox.newRows:
+                    label.set_markup("<span color='#808080'>%s</span>" % label.get_text())
         self.makeTopBox()
         self.makeLowBox()
 
@@ -228,20 +237,43 @@ class TextBox(Gtk.Box):
         super().__init__()
         self.set_orientation(Gtk.Orientation.VERTICAL)
         self.set_border_width(6)
+        self._newRows=[]
 
     # text is printed here
-    def add(self, item):
-        lines = textwrap.wrap(item,34)
-        for line in lines:
-            widget = Gtk.Label(line)
+    def add(self, item, dudename=None):
+        lines = textwrap.wrap(item,30)
+        for i, line in enumerate(lines):
+            if i==0:
+                if dudename:
+                    line = "<span font_desc='unifont' size='medium'>• <b>%s</b>: %s</span>"\
+                                  % (dudename, line)
+                else:
+                    line = "<span font_desc='unifont' size='medium'>• %s</span>" % line
+            widget = Gtk.Label()
+            widget.set_markup(line)
             widget.set_halign(Gtk.Align.START)
+            self._newRows.append(widget)
             self.pack_start(widget, False, False, 1)
+
 
     def newName(self, name):
         widget = Gtk.Label()
-        widget.set_markup('<b>%s</b>' % name)
+        widget.set_markup('<span font_desc="sans" size="large" underline="low"><b>%s</b></span>' % name)
         widget.set_halign(Gtk.Align.START)
+        self._newRows.append(widget)
         self.pack_start(widget, False, False, 1)
+
+    @property
+    def newRows(self):
+        for child in self.get_children():
+            if child in self._newRows:
+                # this is no longer a new row!
+                self._newRows.remove(child)
+                if child.get_text().strip()=='':
+                    # omit from history if it's an empty string
+                    self.remove(child)
+                    continue
+                yield child
 
 
 class MapBox(Gtk.Grid):

@@ -15,21 +15,22 @@ dude = chair
 /dude
 
 dude = talker
+    name = Talker
     tile = ~/talker.png
     tick = 1
         set progress = 42
-        text = tick1: variable changed to 42
+        text = variable changed to 42
     /tick
     tick = 2
         add 1 to progress
-        text = tick2: added 1 to progress so it is %progress%
+        text = added 1 to progress so it is %progress%
     /tick
     tick = 3
         subtract 1 from progress
-        text = tick3: subtracted 1 from progress so it is %progress%
+        text = subtracted 1 from progress so it is %progress%
     /tick
     tick = 4
-        text = tick4
+        text = this is tick #4
         if progress is > 40
             then
             set progress = 300
@@ -40,7 +41,7 @@ dude = talker
         and
     if progress is < 300
         then
-        text = everytick says: progress is %progress%
+        text = progress is %progress%
     /if
     if progress = 300
         then
@@ -49,6 +50,6 @@ dude = talker
     if progress is > 299
         then
         add 1 to progress
-        text = everytick adds 1 to progress so it is %progress%
+        text = I added 1 to progress so it's now %progress%
     /if
 /dude

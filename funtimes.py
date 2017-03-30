@@ -14,12 +14,13 @@
 # does nothing to /src, just references it in replaceTilde()
 # defines objects used by funplayer.py to play a game
 #
-# TODO: replaceVariables in doSet for setting to another variable
-# TODO: an object for if could probably track its state instead of globals
 # TODO: different fatality levels for BadPredicamentError & option to ignore minor
-# TODO: make generator for returning relevant lines from a pred or dude file
+# TODO: maybe make generator for returning relevant lines from a pred or dude file?
+#       such a thing could encompass the doWeirdLines family of functions
+# TODO: an object for if could probably track its state instead of globals
 # TODO: type = textinput -> result
 # TODO: convenient 'on first entry' entry = text
+# TODO: DudeAirport queue for dudes moving to other rooms?
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -66,6 +67,8 @@ class Predicament:
         self.name = name
         # messages displayed in the description box
         self._text = []
+        # messages displayed upon first play of predicament
+        self.entrytext=[]
         # inputtypes: normal, textinput, goto
         self.inputtype = 'normal'
         #=~=~ Movement
@@ -138,6 +141,9 @@ class Predicament:
                 elif key == 'text':
                     self._parse_text(value.strip())
                     continue
+                elif key == 'entry':
+                    self._parse_text(value.strip(),isEntry=True)
+                    continue
                 elif key == 'action':
                     self._parse_action(value,line)
                     continue
@@ -178,12 +184,15 @@ class Predicament:
     '''
         Parsing methods for the initialization
     '''
-    def _parse_text(self,value):
+    def _parse_text(self,value,isEntry=False):
         # remove only the first space if any
         if value and value[0] == ' ':
             value = value[1:]
         # add each line of text onto the prev line of text
-        self._text.append(replaceVariables(value))
+        value = replaceVariables(value)
+        self._text.append(value)
+        if isEntry:
+            self.entrytext.append(value)
 
     def _parse_type(self,value):
         self.inputtype = value
@@ -272,7 +281,11 @@ class Predicament:
     
     @property
     def text(self):
-        return self._text
+        for line in self._text:
+            # remove any entry text (meant to be displayed once)
+            if line in self.entrytext:
+                self._text.remove(line)
+            yield line
 
     @property
     def tilemap(self):
@@ -329,6 +342,8 @@ class Dude:
 
         # name used to generate this dude
         self.name = name
+        # potential displayable name for this dude
+        self.nick = None
         # fullpath to tilefile, always a string
         self.tile = 'None'
         # list of ticks this Dude wants in on
@@ -392,6 +407,8 @@ class Dude:
                 elif key == 'tile':
                     self.tile = value.strip()
                     continue
+                elif key == 'name':
+                    self.nick = value.strip()
     '''
         Parsing functions for the init method
     '''
@@ -523,7 +540,7 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
     # store it in the Predicament class dictionary right away
     # OR create a Dude event for it if this is a Dude
     # change value to a real number or something else if necessary
-    newvalue = value
+    newvalue = replaceVariables(value)
     if value == 'random':
         newvalue = random.randint(1,100)
 
@@ -536,6 +553,7 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
     except TypeError:
         # setting number variable to a string variable
         # TODO TODO TODO
+        print('shit')
         pass
 
     if readingTick==-1:
