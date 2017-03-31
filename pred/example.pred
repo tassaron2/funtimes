@@ -87,7 +87,7 @@ predicament = walkaround2
     ^              ^
     ^              ^
     ^              ^
-    ^   C          ^
+    ^              ^
     ^              ^
     ^               
     ^               
@@ -100,9 +100,13 @@ predicament = walkaround2
     ^              ^
     #>>>  >>>>>>>>>#
     /map
-    dude = C -> chair
     text = More options for movement, but where do they go?
 
+    # these variable must be set here
+    # for reasons explained in badguyQpred
+    set badguyQ = 0
+    set badguyQlabel = Respond to Probe
+    
     right = Back -> walkaround1
     up = walkaround2N
     down = walkaround2S
@@ -113,7 +117,7 @@ predicament = walkaround2N
     #>>>>>>>>>>>>>>#
     ^              ^
     ^              ^
-    ^              ^
+    ^    C         ^
     ^              ^
     ^              ^
     ^              ^
@@ -128,8 +132,9 @@ predicament = walkaround2N
     #>>>>>>  >>>>>>#
     /map
 
+    dude = C -> badguy
+    action = %badguyQlabel% -> badguyQpred
     down = walkaround2
-    text = Nothing interesting here...
 /predicament
 
 predicament = walkaround2S
@@ -154,4 +159,12 @@ predicament = walkaround2S
 
     up = walkaround2
     text = Nothing interesting here...
+/predicament
+
+predicament = badguyQpred
+    # this pred redirects to another one
+    # this also causes funplayer to re-generate it
+    # which resets the tick number to 1
+    type = goto -> walkaround2N
+    set badguyQ = 2
 /predicament

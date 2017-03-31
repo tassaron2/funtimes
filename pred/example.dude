@@ -1,19 +1,6 @@
 version = 1
 # dudes are tick lovers
 
-dude = chair
-    tile = ~/talker.png
-    tick = 1
-        set tassaron = 2
-    /tick
-    tick = 3
-        if tassaron is 2
-            then
-            text = tassaron is 2
-        /if
-    /tick
-/dude
-
 dude = talker
     name = Talker
     tile = ~/talker.png
@@ -51,5 +38,22 @@ dude = talker
         then
         add 1 to progress
         text = I added 1 to progress so it's now %progress%
+    /if
+/dude
+
+dude = badguy
+    tile = ~/talker.png
+    if %badguyQ% = 0
+        then
+        text = A probe queries you for information.
+        set badguyQ = 1
+    /if
+    if %badguyQ% is 1
+        then
+        text = The probe insists that you identify yourself.
+    /if
+    if %badguyQ% is 2
+        then
+        text = That's not good enough...
     /if
 /dude

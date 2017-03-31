@@ -211,7 +211,7 @@ class Predicament:
             action, goto = value.split('->')
         except ValueError:
             raise BadPredicamentError(23, self.name, line)
-        self.actionLabel.append(action.strip())
+        self.actionLabel.append(replaceVariables(action))
         self.actionGoto.append(goto.strip())
 
     def _parse_arrow(self,key,value):
@@ -466,12 +466,23 @@ class Dude:
         else:
             return eventType, event
 
+def findVariables(text):
+    '''
+    finds text surrounded by % in a string and returns that text
+    '''
+    if '%' not in text or '%' not in text[text.index('%')+1:]:
+        return text
+    start = text.index('%')
+    end = text[start+1:].index('%') + start + 1
+    return text[start+1:end]
+    
 
 def replaceVariables(text):
     '''
     replaces '%varname%' in a string with a class variable in Predicament
     stored in the Predicament.variables dict with varname as the key
     '''
+    text = text.strip()
     if '%' not in text or '%' not in text[text.index('%')+1:]:
         # '%' doesn't appear or doesn't appear again after appearing
         return text
@@ -483,6 +494,7 @@ def replaceVariables(text):
     else:
         return replaceVariables(text[:start] + str(Predicament.variables[text[start+1:end]])
                             + text[end+1:])
+                            
 def replaceTilde(text):
     if text.startswith('~'):
         mypath = os.path.dirname(os.path.realpath(__file__))
@@ -641,8 +653,8 @@ def doIf(fp, name, line, readingTick=None):
     else:
         raise BadPredicamentError(26, fp.name, name, line)
     # remove the 'if ' from the key
-    key = key[3:].strip()
-    value = value.strip()
+    key = findVariables(key[3:].strip())
+    value = findVariables(value.strip())
 
     # why is this happening in here? global vars >:O
     tempIfLevel = readingIfLevel + 1
