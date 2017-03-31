@@ -18,8 +18,6 @@
 # TODO: maybe make generator for returning relevant lines from a pred or dude file?
 #       such a thing could encompass the doWeirdLines family of functions
 # TODO: an object for if could probably track its state instead of globals
-# TODO: type = textinput -> result
-# TODO: convenient 'on first entry' entry = text
 # TODO: DudeAirport queue for dudes moving to other rooms?
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
@@ -195,6 +193,7 @@ class Predicament:
             self.entrytext.append(value)
 
     def _parse_type(self,value):
+        # TODO: type = textinput -> result
         self.inputtype = value
         if value.startswith('goto'):
             try:
@@ -211,7 +210,7 @@ class Predicament:
             action, goto = value.split('->')
         except ValueError:
             raise BadPredicamentError(23, self.name, line)
-        self.actionLabel.append(replaceVariables(action))
+        self.actionLabel.append(action)
         self.actionGoto.append(goto.strip())
 
     def _parse_arrow(self,key,value):
@@ -273,11 +272,11 @@ class Predicament:
 
     @property
     def actions(self):
-        return ((label, goto) for label, goto in zip(self.actionLabel, self.actionGoto))
+        return ((replaceVariables(label), goto) for label, goto in zip(self.actionLabel, self.actionGoto))
 
     @property
     def arrows(self):
-        return ((label, goto) for label, goto in zip(self.arrowLabel, self.arrowGoto))
+        return ((replaceVariables(label), goto) for label, goto in zip(self.arrowLabel, self.arrowGoto))
     
     @property
     def text(self):
@@ -361,10 +360,6 @@ class Dude:
         with open(os.path.join(DUDEDIR, filename), 'r') as fp:
             # find line in file where this dude is...
             busy = findStartPoint(fp, lineNo, 'dude', self.name)
-
-            # finally, we start copy-pasting code
-            global readingIfLevel, tempIfLevel
-            readingIfLevel = 0; tempIfLevel = 0
 
             # since 0 is not a real tick, ticks with this variable
             # set to 0 are actually executed on EVERY tick
@@ -562,10 +557,8 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
     except KeyError:
         # nonexistaent variable!
         newvalue = giveNumberIfPossible(newvalue)
-    except TypeError:
+    except ValueError:
         # setting number variable to a string variable
-        # TODO TODO TODO
-        print('shit')
         pass
 
     if readingTick==-1:
@@ -654,7 +647,7 @@ def doIf(fp, name, line, readingTick=None):
         raise BadPredicamentError(26, fp.name, name, line)
     # remove the 'if ' from the key
     key = findVariables(key[3:].strip())
-    value = findVariables(value.strip())
+    value = replaceVariables(value)
 
     # why is this happening in here? global vars >:O
     tempIfLevel = readingIfLevel + 1
@@ -679,13 +672,6 @@ def doIf(fp, name, line, readingTick=None):
             comparee = eval(value[1:])
         except NameError:
             # it's not a comparable value.
-            # maybe it's a variable!!
-            # TODO: DEFINITELY BROKEN
-            if ( value[1:].strip() in Predicament.variables and
-                type(profile[value[1:].strip()]) in (int, float) ):
-                # aha! we're probably comparing profile stuff
-                comparee = Predicament.variables[value[1:].strip()]
-            else:
                 raise BadPredicamentError(25, fp.name, name, line,
                                           key, value[1:].strip())
         if value[1:].strip() in dir():
@@ -716,20 +702,10 @@ def doIf(fp, name, line, readingTick=None):
             try:
                 conditionIsTrue = ( Predicament.variables[key] == int(value) )
             except ValueError:
-                if (value in Predicament.variables and
-                    type(Predicament.variables[value]) in (int, float)):
-                        conditionIsTrue = \
-                                    ( Predicament.variables[key] == int(Predicament.variables[value]) )
-                else:
-                    raise BadPredicamentError(25, fp.name, name,
-                                              line, key, value)
+                conditionIsTrue = False
+                #raise BadPredicamentError(25, fp.name, name, line, key, value)
         else:
-            # try to compare variable against another variable
-            if value in Predicament.variables:
-                conditionIsTrue = ( Predicament.variables[key] == Predicament.variables[value] )
-            else:
-                # otherwise compare it normally
-                conditionIsTrue = ( Predicament.variables[key] == value )
+            conditionIsTrue = ( Predicament.variables[key] == value )
         if negate:
             conditionIsTrue = not conditionIsTrue
     # end of wtf

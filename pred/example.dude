@@ -48,12 +48,25 @@ dude = badguy
         text = A probe queries you for information.
         set badguyQ = 1
     /if
+    
     if %badguyQ% is 1
         then
         text = The probe insists that you identify yourself.
     /if
+    
     if %badguyQ% is 2
         then
-        text = That's not good enough...
+        text = It's not convinced!
+        set badguyQlabel = Attack the probe
+    /if
+    
+    # percent signs are mandatory on the right side
+    if badguyQ is %finalQ%
+        then
+        text = The probe is deactivated!
+        # without % this sets the variable to a string
+        set badguyQ = done
+        set badguyQlabel = OK
+        # once it becomes a string it can't become a num again
     /if
 /dude

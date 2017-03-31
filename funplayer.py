@@ -24,13 +24,17 @@ def play(predname='start'):
     if predname not in predicaments:
         # make a Predicament for this predicament if there is none
         predicaments[predname] = Predicament(predname)
-    predicaments[predname].play()
+        thispred = predicaments[predname]
+    else:
+        # make a new Predicament but carry over some attributes
+        thispred = Predicament(predname, predicaments[predname].pred)
+    thispred.play()
 
 class Predicament:
     # does computation of Predicament objects created by funtimes module
     # flexible so a non-gtk window could be used if it has the same interface
     # e.g. easier to make it work in terminal or on a webpage
-    def __init__(self, predname):
+    def __init__(self, predname, oldpred=None):
         # each instance only plays 1 predicament
         while True:
             self.pred = funtimes.Predicament(predname)
@@ -38,7 +42,13 @@ class Predicament:
                 break
             else:
                 predname = self.pred.goto
-        self._tick=0
+
+        if oldpred:
+            # take attributes from the former predicament
+            self._tick = predicaments[predname]._tick
+            self.pred._text = oldpred._text
+        else:
+            self._tick=0
 
     def play(self):
         # make some new boxes

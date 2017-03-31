@@ -1,0 +1,58 @@
+predicament = walkaround2N
+    if badguyQ is not done
+        then
+        map =
+        #>>>>>>>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^    C         ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>>>>  >>>>>>#
+        /map
+
+        set finalQ = 3
+        dude = C -> badguy
+        action = %badguyQlabel% -> badguyQpred
+    /if
+    if badguyQ is done
+        then
+        map =
+        #>>>>>>>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>>>>  >>>>>>#
+        /map
+    /if
+    down = walkaround2
+/predicament
+
+predicament = badguyQpred
+    # this pred redirects to another one
+    type = goto -> walkaround2N
+    if badguyQ is not done
+        then
+        add 1 to badguyQ
+    /if
+/predicament
