@@ -57,7 +57,22 @@ dude = badguy
     if %badguyQ% is 2
         then
         text = It's not convinced!
+        set badguyQ = 3
         set badguyQlabel = Attack the probe
+        set probeAttackMsg = The probe attacks!!!
+    /if
+    
+    if %badguyQ% is > 2
+        and
+    if badguyQ is < 6
+        then
+        text = %probeAttackMsg%
+    /if
+    
+    if badguyQ is 4
+        then
+        text = You attack back!
+        set badguyQ = 5
     /if
     
     # percent signs are mandatory on the right side
@@ -68,5 +83,24 @@ dude = badguy
         set badguyQ = done
         set badguyQlabel = OK
         # once it becomes a string it can't become a num again
+    /if
+/dude
+
+
+dude = follower
+    tile = ~/talker.png
+    if followed is 0
+        then
+        set followed = 1
+        set follownum = 0
+    /if
+    if followed is 1
+        then
+        add 1 to follownum
+        text = Follower is watching you.
+    /if
+    if follownum is > 5
+        then
+        action = Punch that stupid follower! -> punchfollower
     /if
 /dude

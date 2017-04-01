@@ -2,7 +2,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # main.py for an example game
-# last modified 2017/03/25
+# last modified 2017/03/31
 # created 2017/03/23 by tassaron
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
@@ -20,6 +20,11 @@ HOME = os.getenv("HOME")
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
 def main():
+    funplayer.set_variables({ 'badguyQ' : 0,
+                              'badguyQlabel' : 'Respond to Probe',
+                              'heardthatnoise' : 0,
+                              'followed' : 0,
+                            })
     funplayer.play('entry')
     funplayer.main()
 

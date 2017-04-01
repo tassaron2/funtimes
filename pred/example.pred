@@ -5,7 +5,7 @@ version = 1
 predicament = start
     # this is the default startpoint for a game
     type = goto -> entry
-    set entrymsg = You entered through Funplayer.py instead of Main.py!
+    set entrymsg = You entered through Funplayer.py!
 /predicament this line ends a predicament definition
 
 predicament = entry
@@ -21,11 +21,6 @@ predicament = entry
     add 10 to number
     text = %progress% + 10 = %number%
     action = OK -> basicstuff
-
-    # initialize some quest-tracking variables here because
-    # the player can't return to this room after leaving
-    set badguyQ = 0
-    set badguyQlabel = Respond to Probe
     
 /predicament anything else on this line isn't read, like a comment
 
@@ -60,24 +55,49 @@ predicament = basicstuff
 
 predicament = walkaround1
     name = The First Room
-    map =
-    #>>>>>>>>>>>>>>#
-    ^              ^
-    ^              ^
-    ^              ^
-    ^       A      ^
-    #              ^
-                   ^
-                   ^
-    #              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    #>>>>>>>>>>>>>>#
-    /map
+    if followed is 0
+        then
+        map =
+        #>>>>>>>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^       A      ^
+        #              ^
+                       ^
+                       ^
+        #              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>>>>>>>>>>>>#
+        /map
+    /if
+    if followed is 1
+        then
+        map =
+        #>>>>>>>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^       A      ^
+        #              ^
+                       ^
+                       ^
+        #              ^
+        ^              ^
+        ^    G         ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>>>>>>>>>>>>#
+        /map
+        dude = G -> follower
+    /if
     entry = A non-descript room with a dude in it.
     dude = A -> talker
     left = walkaround2
@@ -87,34 +107,72 @@ predicament = walkaround2
     # to draw this map correctly (with floor tiles)
     # had to disable 'strip trailing spaces'
     name = Hub Room
-    map =
-    #>>>>>>  >>>>>>#
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^               
-    ^               
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    ^              ^
-    #>>>  >>>>>>>>>#
-    /map
-    text = More options for movement, but where do they go?
+    if followed is 0
+        then
+        map =
+        #>>>>>>  >>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^               
+        ^               
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>  >>>>>>>>>#
+        /map
+        text = More options for movement, but where do they go?
+    /if
+    if followed is 1
+        then
+        map =
+        #>>>>>>  >>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^               
+        ^               
+        ^  G           ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>  >>>>>>>>>#
+        /map
+        dude = G -> follower
+    /if
     
     right = Back -> walkaround1
     up = walkaround2N
-    down = walkaround2S
+    if badguyQ is not done
+        then
+        down = walkaround2S
+    /if
+    if badguyQ is done
+        then
+        if heardthatnoise is 0
+            then
+            text = Heard a weird sound from the south...
+            set heardthatnoise = 1
+        /if
+        down = southbranch-entry
+    /if
 /predicament
 
 predicament = walkaround2S
+    up = walkaround2
     map =
-    #>>>   >>>>>>>>#
+    #>>>  >>>>>>>>>#
     ^              ^
     ^              ^
     ^              ^
@@ -132,6 +190,9 @@ predicament = walkaround2S
     #>>>>>>>>>>>>>>#
     /map
 
-    up = walkaround2
     text = Nothing interesting here...
+    if badguyQ is not 0
+        then
+        text = At least that freaking probe isn't here!
+    /if
 /predicament

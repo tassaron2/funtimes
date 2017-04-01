@@ -20,11 +20,13 @@ predicament = walkaround2N
         #>>>>>>  >>>>>>#
         /map
 
-        set finalQ = 3
+        set finalQ = 6
         dude = C -> badguy
         action = %badguyQlabel% -> badguyQpred
     /if
     if badguyQ is done
+        and
+    if followed is 0
         then
         map =
         #>>>>>>>>>>>>>>#
@@ -44,6 +46,28 @@ predicament = walkaround2N
         ^              ^
         #>>>>>>  >>>>>>#
         /map
+    /if
+    if followed is 1
+        then
+        map =
+        #>>>>>>>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^   G          ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>>>>  >>>>>>#
+        /map
+        dude = G -> follower
     /if
     down = walkaround2
 /predicament

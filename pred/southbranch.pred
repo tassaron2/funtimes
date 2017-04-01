@@ -1,0 +1,96 @@
+predicament = southbranch-entry
+    up = walkaround2
+    down = qwerty
+    if followed is 0
+        then
+        map = 
+        #>>>  >>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>  >>>>>>>>>#
+        /map
+        text = Where did that extra hallway come from?
+    /if
+    if followed is 1
+        then
+        map = 
+        #>>>  >>>>>>>>>#
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^          G   ^
+        ^              ^
+        ^              ^
+        ^              ^
+        ^              ^
+        #>>>  >>>>>>>>>#
+        /map
+        dude = G -> follower
+    /if
+/predicament
+
+predicament = qwerty
+    up = southbranch-entry
+    map = 
+    #>>>  >>>>>>>>>#
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^     G        ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    #>>>>>>>>>>>>>>#
+    /map
+    dude = G -> follower
+/predicament
+
+predicament = punchfollower
+    exit
+/predicament
+
+predicament = somewhereelse
+    map =
+    #>>>>>>  >>>>>>#
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^               
+    ^               
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    ^              ^
+    #>>>  >>>>>>>>>#
+    /map
+/predicament

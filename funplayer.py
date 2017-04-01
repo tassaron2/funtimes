@@ -30,6 +30,10 @@ def play(predname='start'):
         thispred = Predicament(predname, predicaments[predname].pred)
     thispred.play()
 
+def set_variables(dictionary):
+    for key, value in dictionary.items():
+        funtimes.Predicament.variables[key] = value
+
 class Predicament:
     # does computation of Predicament objects created by funtimes module
     # flexible so a non-gtk window could be used if it has the same interface
@@ -113,9 +117,12 @@ class Predicament:
             for dudeObj in self.pred.fakeDudes:
                 for eventType, event in dudeObj.events(self._tick):
                     Dude.doEvent(eventType, event, None)
-                
         # anyone else has missed the train
 
+        # close window if requested
+        if self.pred.inputtype=='exit':
+            main_quit()
+        # otherwise tick the window itself
         window.tick()
 
 class Dude:
@@ -133,6 +140,9 @@ class Dude:
                 window.text.add(event, nick)
             else:
                 window.text.add(event)
+        elif eventType=='action':
+            label, goto = event.split('=')
+            window.actions.addToEnd(label.strip(), goto.strip())
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -142,6 +152,10 @@ class Dude:
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+
+def main_quit(*args):
+    Gtk.main_quit()
+    #return False
 
 def main():
     Gtk.main()
@@ -167,7 +181,8 @@ class Funwindow(Gtk.Window):
         # fill it with empty boxes!!
         self.body = Body()
         self.add(self.body)
-        self.connect("delete-event", Gtk.main_quit)
+        self.connect("delete-event", main_quit)
+        self.connect("destroy", main_quit)
         self._tick=0
 
     def clear(self):
@@ -258,14 +273,22 @@ class Body(Gtk.Box):
 
 class ActionButtons(Gtk.Box):
     # area of the window where buttons go for actions
-    def add(self, label, gotoPred):
+    def makeButton(self, label, gotoPred):
         button = Gtk.Button(label=label)
         button.set_size_request(64, 64)
         if gotoPred:
             button.connect('clicked', goto, gotoPred)
         else:
             button.set_sensitive(False)
+        return button
+    
+    def add(self, label, gotoPred):
+        button = self.makeButton(label, gotoPred)
         self.pack_start(button, False, False, 0)
+
+    def addToEnd(self, label, gotoPred):
+        button = self.makeButton(label, gotoPred)
+        self.pack_end(button, False, False, 0)
 
 class TextBox(Gtk.Box):
     def __init__(self):

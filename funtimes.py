@@ -40,7 +40,24 @@ class BadPredicamentError(Exception):
         print('saw %s dudes in %s predicaments' % (Dude.numDudes, Predicament.numPredicaments))
         quit()
 
-class Predicament:
+class Parser:
+    def _parse_action(self,value,line,readingTick=-1):
+        try:
+            action, goto = value.split('->')
+        except ValueError:
+            raise BadPredicamentError(23, self.name, line)
+        if readingTick==-1:
+            # predicament
+            self.actionLabel.append(action)
+            self.actionGoto.append(goto.strip())
+        elif readingTick==0:
+            # dude everytick
+            self.everytick.append(('action','%s=%s' % (action, goto)))
+        elif readingTick>0:
+            self._events.append(('action','%s=%s' % (action, goto)))
+            self.eventNums.append(readingTick)
+
+class Predicament(Parser):
     """
     when creating a Predicament, pass in a string holding the name.
     the constructor will find the .pred file with this name in the PREDDIR
@@ -63,7 +80,6 @@ class Predicament:
         # gotta have more comments than code
         Predicament.numPredicaments += 1
 
-        #=~=~=~ GUARANTEED ATTRIBUTES
         # predname used to create this
         self.name = name
         # messages displayed in the description box
@@ -88,7 +104,6 @@ class Predicament:
         # Fake dudes... don't have names, used for entrytext currently
         self.fakeDudes = []
 
-        #=~=~=~ OPTIONAL ATTRIBUTES
         # destination that funplayer should goto right away
         # i.e. if not None then user won't see this pred
         self.goto = None
@@ -126,6 +141,10 @@ class Predicament:
                 if line.find("/predicament") == 0:
                     busy = False
                     break
+                if line.strip() == 'exit':
+                    # tell funplayer to close the window
+                    self.inputtype = 'exit'
+                    continue
                 if doWeirdLines(fp, self.filename, self.name, line):
                     # if this returns True then it did the parsing work for us
                     continue
@@ -160,7 +179,7 @@ class Predicament:
                     self.result = value.strip()
                     continue
                 elif key == 'map':
-                    self.predmap = Predicament.readMap(fp, self.name, line)
+                    self.predmap = Predicament.parse_map(fp, self.name, line)
                     continue
                 elif key == 'name':
                     self.mapname = value.strip()
@@ -209,14 +228,6 @@ class Predicament:
         if self.inputtype not in ('normal', 'inputtext', 'goto'):
             raise BadPredicamentError(6, self.filename, self.name, value)
 
-    def _parse_action(self,value,line):
-        try:
-            action, goto = value.split('->')
-        except ValueError:
-            raise BadPredicamentError(23, self.name, line)
-        self.actionLabel.append(action)
-        self.actionGoto.append(goto.strip())
-
     def _parse_arrow(self,key,value):
         try:
             label, goto = value.split('->')
@@ -248,12 +259,8 @@ class Predicament:
         else:
             raise BadPredicamentError(44, self.filename, self.name)
 
-    # this isn't used anywhere, but handy for debugging
-    def __str__(self):
-        return '< Predicament %s: %s >' % (self.name, self._text)
-
     @staticmethod
-    def readMap(fp, name, line):
+    def parse_map(fp, name, line):
         # fp and line are things we need to iterate through the pred file
         # name is something we only need to raise errors, to help debug
         maplist = []
@@ -274,6 +281,10 @@ class Predicament:
         indentSize = len(longest) - len(longest.lstrip())
         return [line[indentSize:] for line in maplist]
 
+    # this isn't used anywhere, but handy for debugging
+    def __str__(self):
+        return '< Predicament %s: %s >' % (self.name, self._text)
+        
     @property
     def actions(self):
         return ((replaceVariables(label), goto) for label, goto in zip(self.actionLabel, self.actionGoto))
@@ -326,7 +337,7 @@ class Predicament:
             yield dudeObj.name
 
 
-class Dude:
+class Dude(Parser):
     '''
     when creating a Dude, pass in a string containing the dude's name.
     the constructor will find the .dude file with this name in the DUDEDIR
@@ -353,6 +364,10 @@ class Dude:
         self.eventNums = []
         # events this dude is really persistent about
         self.everytick = [] # a list of ('key','value') pairs
+
+        # destination buttons this dude wants to spawn
+        self.actionLabel=[]
+        self.actionGoto=[]
 
         if self.name:
             # read dude file
@@ -413,6 +428,8 @@ class Dude:
                     continue
                 elif key == 'name':
                     self.nick = value.strip()
+                elif key == 'action':
+                    self._parse_action(value,line,readingTick)
     '''
         Parsing functions for the init method
     '''
@@ -422,7 +439,7 @@ class Dude:
             value = value[1:]
         # add raw text to event queue
         # variables in text will be expanded later 'in a tick'
-        if readingTick!=0:
+        if readingTick>0:
             # this event is for specific tick
             self._events.append(('text',value))
             self.eventNums.append(readingTick)
@@ -512,7 +529,7 @@ def replaceVariables(text):
 def replaceTilde(text):
     if text.startswith('~'):
         mypath = os.path.dirname(os.path.realpath(__file__))
-        return '%s/%s/%s' % (mypath, 'src', text[1:])
+        return '%s/%s%s' % (mypath, 'src', text[1:])
     else:
         return text
 
@@ -673,7 +690,7 @@ def doIf(fp, name, line, readingTick=None):
 
     # make sure key exists
     if key not in Predicament.variables.keys():
-        if readingTick:
+        if readingTick!=-1:
             # Dudes have to read all the If statements
             # every tick, so this variable might be created
             # in the future for another if statement
