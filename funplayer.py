@@ -37,6 +37,8 @@ class Predicament:
     def __init__(self, predname, oldpred=None):
         # each instance only plays 1 predicament
         while True:
+            self.name = predname
+            # make a wholly new predicament
             self.pred = funtimes.Predicament(predname)
             if not self.pred.goto:
                 break
@@ -44,9 +46,8 @@ class Predicament:
                 predname = self.pred.goto
 
         if oldpred:
-            # take attributes from the former predicament
+            # take tick-number from the former predicament
             self._tick = predicaments[predname]._tick
-            self.pred._text = oldpred._text
         else:
             self._tick=0
 
@@ -78,21 +79,41 @@ class Predicament:
         for label, goto in self.pred.actions:
             window.actions.add(label, goto)
 
+        # copy this newly modified pred into the global dict
+        predicaments[self.name] = self
         # draw the window!
         window.draw()
 
+    def tryToTick(self,dudename,tick):
+        if dudename:
+            # tick the dude! ...off
+            Dude(dudename).tick(tick)
+        else:
+            # it's an imposter :|
+            self.hasFakeDudes=True
+            
     def tick(self):
         # our tick tracks time passage in this pred only
         # the window tick should measure total game ticks
         self._tick+=1
 
+        # reset to false each tick
+        self.hasFakeDudes=False
+
         # tick dudes that need to be ticked every tick... tock
         for dudename in self.pred.dudesForTick('everytick'):
-            Dude(dudename).tick('everytick')
+            self.tryToTick(dudename, 'everytick')
 
         # check if any other dudes need to be ticked
         for dudename in self.pred.dudesForTick(self._tick):
-            Dude(dudename).tick(self._tick)
+            self.tryToTick(dudename, self._tick)
+
+        # if we must tick the fake dudes, let's get it over with
+        if self.hasFakeDudes==True:
+            for dudeObj in self.pred.fakeDudes:
+                for eventType, event in dudeObj.events(self._tick):
+                    Dude.doEvent(eventType, event, None)
+                
         # anyone else has missed the train
 
         window.tick()
@@ -103,11 +124,15 @@ class Dude:
 
     def tick(self, tick):
         for eventType, event in self.dude.events(tick):
-            if eventType=='text':
-                if self.dude.nick:
-                    window.text.add(event, self.dude.nick)
-                else:
-                    window.text.add(event)
+            Dude.doEvent(eventType, event, self.dude.nick)
+
+    @staticmethod
+    def doEvent(eventType, event, nick):
+        if eventType=='text':
+            if nick:
+                window.text.add(event, nick)
+            else:
+                window.text.add(event)
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #

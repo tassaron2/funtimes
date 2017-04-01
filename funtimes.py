@@ -19,6 +19,8 @@
 #       such a thing could encompass the doWeirdLines family of functions
 # TODO: an object for if could probably track its state instead of globals
 # TODO: DudeAirport queue for dudes moving to other rooms?
+# TODO: main cause of slowness is currently tile()'s use of os stat()
+#       could try to eliminate reloading images that didn't change
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -27,6 +29,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import os
 import random
+import itertools
 
 class BadPredicamentError(Exception):
     def __init__(self, code=0, *args):
@@ -65,8 +68,6 @@ class Predicament:
         self.name = name
         # messages displayed in the description box
         self._text = []
-        # messages displayed upon first play of predicament
-        self.entrytext=[]
         # inputtypes: normal, textinput, goto
         self.inputtype = 'normal'
         #=~=~ Movement
@@ -84,6 +85,8 @@ class Predicament:
         # Funplayer may want to generate Dudes on-the-fly but
         # we need information about dudes so we must also pregen them
         self._pregenDudes = []
+        # Fake dudes... don't have names, used for entrytext currently
+        self.fakeDudes = []
 
         #=~=~=~ OPTIONAL ATTRIBUTES
         # destination that funplayer should goto right away
@@ -93,16 +96,18 @@ class Predicament:
         self.result = None
         # sound played at Predicament creation
         self.sound = None
-        # list or string variable that will output to 'funtimes.out'
-        self.write = None
         # MAP DATA
         # list of lines of tiles to draw for the map
         self.predmap = None
         # name displayed over the map
         self.mapname = None
 
+        # now read the pred file to fill in these attributes
+        self._parse_everything()
+
+    def _parse_everything(self):
         #=~=~=~ TRY TO OPEN THE PRED FILE CONTAINING OUR PREDICAMENT
-        self.filename, lineNo = tryToOpen(PREDDIR, 'pred', name)
+        self.filename, lineNo = tryToOpen(PREDDIR, 'pred', self.name)
 
         with open(os.path.join(PREDDIR, self.filename), 'r') as fp:
             # find line in file where this predicament begins...
@@ -154,9 +159,6 @@ class Predicament:
                 elif key == 'result':
                     self.result = value.strip()
                     continue
-                elif key == 'write':
-                    self.write = value.strip()
-                    continue
                 elif key == 'map':
                     self.predmap = Predicament.readMap(fp, self.name, line)
                     continue
@@ -188,9 +190,11 @@ class Predicament:
             value = value[1:]
         # add each line of text onto the prev line of text
         value = replaceVariables(value)
-        self._text.append(value)
-        if isEntry:
-            self.entrytext.append(value)
+        if not isEntry:
+            self._text.append(value)
+        else:
+            # make a fake dude to play this text on tick1
+            self.fakeDudes.append(Dude.forEntrytext(value))
 
     def _parse_type(self,value):
         # TODO: type = textinput -> result
@@ -280,11 +284,7 @@ class Predicament:
     
     @property
     def text(self):
-        for line in self._text:
-            # remove any entry text (meant to be displayed once)
-            if line in self.entrytext:
-                self._text.remove(line)
-            yield line
+        return (line for line in self._text)
 
     @property
     def tilemap(self):
@@ -316,7 +316,7 @@ class Predicament:
         also small arachnids, part of the order Parasitiformes
         '''
         # iterate through our dudes
-        for dudeObj in self._pregenDudes:
+        for dudeObj in itertools.chain(self._pregenDudes, self.fakeDudes):
             if tickNum=='everytick':
                 if len(dudeObj.everytick)==0:
                     continue
@@ -354,8 +354,17 @@ class Dude:
         # events this dude is really persistent about
         self.everytick = [] # a list of ('key','value') pairs
 
+        if self.name:
+            # read dude file
+            self._parse_everything()
+        else:
+            # no dudename? must be a fake dude created by the engine
+            # there's no file to parse so let's get outta here!
+            pass
+
+    def _parse_everything(self):
         #=~=~=~ TRY TO OPEN THE DUDE FILE CONTAINING OUR DUDE
-        filename, lineNo = tryToOpen(DUDEDIR, 'dude', name)
+        filename, lineNo = tryToOpen(DUDEDIR, 'dude', self.name)
 
         with open(os.path.join(DUDEDIR, filename), 'r') as fp:
             # find line in file where this dude is...
@@ -421,7 +430,17 @@ class Dude:
             # this event is for every tick
             self.everytick.append(('text',value))
 
+    @staticmethod
+    def forEntrytext(text):
+        '''creates a 'fake' dude with a text event for tick 1
+        which stores a line of entrytext from a predicament'''
+        imposter = Dude(name=None)
+        imposter._parse_text(text, readingTick=1)
+        if 1 not in imposter.ticks:
+            imposter.ticks.append(1)
+        return imposter
 
+        
     '''
         EVENTS
     '''
