@@ -26,7 +26,23 @@ def main():
                               'followed' : 0,
                             })
     funplayer.play('entry')
-    funplayer.main()
+    
+    while True:
+        output = funplayer.main()
+        if type(output)==int:
+            # user closed window
+            quit(0)
+        newpred = wtfIsThis(output)
+        funplayer.play(newpred)
+
+def wtfIsThis(exitcode):
+    if exitcode=='punchedfollower':
+        return 'somewhereelse'
+        
+    else:
+        # idk so quit the game
+        return 'kill'
+    
 
 if __name__ == '__main__':
     main()

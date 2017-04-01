@@ -52,6 +52,7 @@ class Predicament:
         if oldpred:
             # take tick-number from the former predicament
             self._tick = predicaments[predname]._tick
+            self.hasFakeDudes = predicaments[predname].hasFakeDudes
         else:
             self._tick=0
 
@@ -73,6 +74,8 @@ class Predicament:
         # tick to get any extra text or actions
         self.tick()
 
+        if 'quit' in funtimes.predicaments:
+            window.arrows.add('Quit', 'quit')
         # make the arrow buttons
         for label, goto in self.pred.arrows:
             # disabled directions have None as goto
@@ -101,8 +104,13 @@ class Predicament:
         # the window tick should measure total game ticks
         self._tick+=1
 
-        # reset to false each tick
-        self.hasFakeDudes=False
+        # if we must tick the fake dudes, let's get it over with
+        if self._tick==1 or self.hasFakeDudes==True:
+            for dudeObj in self.pred.fakeDudes:
+                for eventType, event in dudeObj.events(self._tick):
+                    Dude.doEvent(eventType, event, None)
+            # reset to false
+            self.hasFakeDudes=False
 
         # tick dudes that need to be ticked every tick... tock
         for dudename in self.pred.dudesForTick('everytick'):
@@ -111,17 +119,13 @@ class Predicament:
         # check if any other dudes need to be ticked
         for dudename in self.pred.dudesForTick(self._tick):
             self.tryToTick(dudename, self._tick)
-
-        # if we must tick the fake dudes, let's get it over with
-        if self.hasFakeDudes==True:
-            for dudeObj in self.pred.fakeDudes:
-                for eventType, event in dudeObj.events(self._tick):
-                    Dude.doEvent(eventType, event, None)
         # anyone else has missed the train
 
         # close window if requested
-        if self.pred.inputtype=='exit':
-            main_quit()
+        if self.pred.inputtype.startswith('exit'):
+            getInput.closewin(self.pred.inputtype[4:])
+        elif self.pred.inputtype=='quit':
+            getInput.kill()
         # otherwise tick the window itself
         window.tick()
 
@@ -153,18 +157,33 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
-def main_quit(*args):
-    Gtk.main_quit()
-    #return False
-
+class getInput:
+    exitcode = 0
+    
+    @staticmethod
+    def kill(*args):
+        getInput.exitcode = 9
+        getInput.main_quit()
+        
+    @staticmethod
+    def closewin(*args):
+        getInput.exitcode = args[-1]
+        getInput.main_quit()
+        
+    @staticmethod
+    def main_quit():
+        Gtk.main_quit()
+        
 def main():
+    getInput.exitcode = 0
     Gtk.main()
+    return getInput.exitcode
 
 def goto(*args):
-    # based on a batch file therefore needs goto ;)
-    # actually we need this to catch widgets passed from GTK
-    # so they don't interfere with my nice pure play() function
-    # the last argument is the new predname
+    '''based on a batch file therefore needs goto ;)
+    actually we need this to catch widgets passed from GTK
+    so they don't interfere with my nice pure play() function
+    the last argument is the new predname'''
     newpred = args[-1]
     play(newpred)
 
@@ -181,8 +200,7 @@ class Funwindow(Gtk.Window):
         # fill it with empty boxes!!
         self.body = Body()
         self.add(self.body)
-        self.connect("delete-event", main_quit)
-        self.connect("destroy", main_quit)
+        self.connect("delete-event", getInput.closewin, 8)
         self._tick=0
 
     def clear(self):

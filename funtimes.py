@@ -141,9 +141,9 @@ class Predicament(Parser):
                 if line.find("/predicament") == 0:
                     busy = False
                     break
-                if line.strip() == 'exit':
-                    # tell funplayer to close the window
-                    self.inputtype = 'exit'
+                if line.strip() == 'quit':
+                    # tell funplayer to quit the game
+                    self.inputtype = 'quit'
                     continue
                 if doWeirdLines(fp, self.filename, self.name, line):
                     # if this returns True then it did the parsing work for us
@@ -160,6 +160,10 @@ class Predicament(Parser):
                     # we're in a new predicament without closing the last one.
                     # the pred file must be invalid.
                     raise BadPredicamentError(4, self.filename, self.name)
+                elif key.startswith('exit'):
+                    # tell funplayer to close the window
+                    self.inputtype = 'exit%s' % value.strip()
+                    continue
                 elif key == 'text':
                     self._parse_text(value.strip())
                     continue
@@ -364,10 +368,6 @@ class Dude(Parser):
         self.eventNums = []
         # events this dude is really persistent about
         self.everytick = [] # a list of ('key','value') pairs
-
-        # destination buttons this dude wants to spawn
-        self.actionLabel=[]
-        self.actionGoto=[]
 
         if self.name:
             # read dude file

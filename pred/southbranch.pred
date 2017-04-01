@@ -71,7 +71,7 @@ predicament = qwerty
 /predicament
 
 predicament = punchfollower
-    exit
+    exit = punchedfollower
 /predicament
 
 predicament = somewhereelse
@@ -93,4 +93,5 @@ predicament = somewhereelse
     ^              ^
     #>>>  >>>>>>>>>#
     /map
+    text = It worked!
 /predicament

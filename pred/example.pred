@@ -196,3 +196,13 @@ predicament = walkaround2S
         text = At least that freaking probe isn't here!
     /if
 /predicament
+
+# If you uncomment this predicament, it will be
+# inserted on every screen as a 'Quit' button
+#predicament = quit
+    quit
+/predicament
+
+predicament = kill
+    quit
+/predicament
