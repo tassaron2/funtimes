@@ -1,14 +1,89 @@
+version = 1
 predicament = mainmenu
-    name = Main Menu
     map =
 
-    
-    Current HP: %playerHP%
+              MAIN MENU
+    Name       : %playerName%
+    Health Pts : %playerHP%
+    Skill Pts  : %playerSP%
     /map
-    text=This is the main menu. Hard as it may seem to believe.
-    action = Start Game -> goentry
+    if seenIntro is 0
+        then
+        text = You are %playerName%. You recently decided to turn to a life of cybercrime. It's a dangerous job, but the opportunity to make a lot of dough is too tempting to pass up. You love dough.
+    /if
+    set seenIntro = 1
+    text = To make dough, accept a job in the Jobs menu.
+
+    action = Jobs -> jobsmenu
 /predicament
 
-predicament = goentry
-    exit = entry
+
+           THE JOBS MENU
+
+predicament = jobsmenu
+    name = Available Jobs
+    action = Back -> mainmenu
+    function = generateRandomValues
+    set numJobs = 0
+    if supereasyQuest1 is < 1
+        and
+    if playerSP is < 3
+        thender
+        add 1 to numJobs
+        text = %girlname% Needs Help
+        action = View %girlname%'s Job -> viewsupereasyQuest1
+    /if
+    if supereasyQuest2 is < 1
+        and
+    if playerSP is < 3
+        thender
+        add 1 to numJobs
+        text = %jerkname% Needs Help
+        action = View %jerkname%'s Job -> viewsupereasyQuest2
+    /if
+    if numJobs is < 1
+        then
+        text = ...No jobs available at the moment O_o
+    /if
+/predicament END OF JOBS MENU
+
+           TECHNICAL STUFF, FUNCTIONS
+
+predicament = quit
+    quit
+/predicament
+
+predicament = jobview
+    action = Back -> jobsmenu
+    action = Accept -> accept%predname%
+    text = Do you want to accept this job?
+    text = If you do, you could make up to $%reward%.
+/predicament
+
+predicament = generateRandomValues
+    set progress = random
+    if progress is < 41
+        then
+        set girlname = Megan
+        set jerkname = Josh
+    /if
+    if progress is > 40
+        and
+    if progress is < 61
+        then
+        set girlname = Brianna
+        set jerkname = Frank
+    /if
+    if progress is > 60
+        and
+    if progress is < 81
+        then
+        set girlname = Anna
+        set jerkname = Peter
+    /if
+    if progress is > 80
+        then
+        set girlname = Laurie
+        set jerkname = Sebastian
+    /if
 /predicament

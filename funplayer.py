@@ -88,7 +88,7 @@ class Predicament:
         if self.pred.mapname:
             window.name.newName(self.pred.mapname)
         else:
-            window.name.newName('                ')
+            window.name.newName(Funwindow.modeVars['emptyMapName'])
         for line in self.pred.text:
             window.text.add(line)
 
@@ -98,10 +98,11 @@ class Predicament:
         if 'quit' in funtimes.predicaments\
         and 'quit' in Funwindow.modeVars:
             window.arrows.add(Funwindow.modeVars['quit'], 'quit')
-        # make the arrow buttons
-        for label, goto in self.pred.arrows:
-            # disabled directions have None as goto
-            window.arrows.add(label, goto)
+        if Funwindow.modeVars['arrowsEnabled']:
+            # make the arrow buttons
+            for label, goto in self.pred.arrows:
+                # disabled directions have None as goto
+                window.arrows.add(label, goto)
         # make a link back to this predicament ('Wait')
         if 'wait' in Funwindow.modeVars:
             window.arrows.add(Funwindow.modeVars['wait'], self.pred.name)
@@ -259,10 +260,16 @@ GtkButton:active {
 class Funwindow(Gtk.Window):
     mode = 'MAP'
     modeVarDicts = {
-        'MAP'  : { 'quit' : 'Log Out',
-                   'wait' : 'Wait',
+        'MAP'  : { 'quit'          : 'Log Out',
+                   'wait'          : 'Wait',
+                   'arrowsEnabled' : True,
+                   'emptyMapName'  : '                ',
+                   'textPrefix'    : '• ',
                  },
-        'MENU' : { 'quit' : 'Quit',
+        'MENU' : { 'quit'          : 'Quit',
+                   'arrowsEnabled' : False,
+                   'emptyMapName'  : '',
+                   'textPrefix'    : '    ',
                  },
     }
     modeVars = modeVarDicts['MAP']
@@ -362,9 +369,10 @@ class Body(Gtk.Box):
                 else:
                     self.lowBox.remove(eval('self.%s' % box))
             elif box=='textBox':
+                colour = getColor('inactive')
                 for label in self.textBox.newRows:
-                    label.set_markup("<span color='%s'>%s</span>"\
-                        % (Funwindow.color['inactive'], label.get_text()))
+                    label.set_markup("<span %s>%s</span>"\
+                        % (colour, label.get_text()))
         self.makeTopBox()
         self.makeLowBox()
 
@@ -430,9 +438,9 @@ class TextBox(Gtk.Box):
         lines = wrap(item,38)
         for i, line in enumerate(lines):
             colour = getColor('text')
-            if i==0 and Funwindow.mode=='MAP':
-                line = "<span %s font_desc='unifont' size='large'>• %s</span>"\
-                        % (colour, line)
+            if i==0:
+                line = "<span %s font_desc='unifont' size='large'>%s%s</span>"\
+                        % (colour, Funwindow.modeVars['textPrefix'], line)
             else:
                 line = "<span %s font_desc='unifont' size='large'>%s</span>"\
                        % (colour, line)
@@ -477,8 +485,8 @@ class MapBox(Gtk.Box):
         for line in tilemap:
             line = funtimes.replaceVariables(line)
             widget = Gtk.Label()
-            widget.set_markup('<span font_desc="sans" size="x-large"><b>%s</b></span>' % line)
-            widget.set_halign(Gtk.Align.END)
+            widget.set_markup('<span font_desc="mono" size="x-large"><b>%s</b></span>' % line)
+            widget.set_halign(Gtk.Align.START)
             self.pack_start(widget,False,False,0)
 
 class MapGrid(Gtk.Grid):

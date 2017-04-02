@@ -1,0 +1,135 @@
+predicament = southbranch-entry
+    up = walkaround2
+    down = qwerty
+    if followed is 0
+        then
+        map = 
+        >>  >>>>>>
+        ^        ^
+        ^        ^
+        ^        ^
+        ^   Y    ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^>  >>>>>>
+        /map
+        text = Where did that extra hallway come from?
+    /if
+    if followed is 1
+        then
+        map = 
+        >>  >>>>>>
+        ^        ^
+        ^        ^
+        ^        ^
+        ^  Y     ^
+        ^     G  ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^>  >>>>>>
+        /map
+        dude = G -> follower
+    /if
+    dude = Y -> you
+/predicament
+
+predicament = qwerty
+    up = southbranch-entry
+    map = 
+    >>  >>>>>>
+    ^        ^
+    ^        ^
+    ^  Y     ^
+    ^        ^
+    ^        ^
+    ^  G     ^
+    ^        ^
+    ^        ^
+    ^>>>>>>>>>
+    /map
+    dude = G -> follower
+    dude = Y -> you
+/predicament
+
+predicament = punchfollower
+    exit = somewhereelse
+/predicament
+
+predicament = somewhereelse
+    if tick is 1
+        then
+        type = goto -> somewhereelse2
+    /if
+    set tick=1
+    text = Suddenly everything goes black...
+/predicament
+
+predicament = somewhereelse2
+    if nomorekey is 1
+        then
+        map =
+        >>>>>>>>>>
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^    Y   ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^>>>>>>>>>
+        /map
+        text = Try a direction...
+    /if
+    if badguyQ is done
+        and
+    if nomorekey is 0
+        then
+        map =
+        >>>>>>>>>>
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^  KY    ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^>>>>>>>>>
+        /map
+        dude = K -> key
+    /if
+    if badguyQ is not done
+        then
+        map =
+        >>>>>>>>>>
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^  G     ^
+        ^      Y ^
+        ^        ^
+        ^        ^
+        ^>>>>>>>>>
+        /map
+        dude = G -> badguy
+    /if
+    if badguyQ is done
+        then
+        up = nope
+        down = nope
+        left = yep
+        right = nope
+    /if
+    entry = You're trapped in a cell!
+    dude = Y -> you
+    set dead = 0
+/predicament
+
+predicament = nope
+    type = goto -> somewhereelse
+/predicament

@@ -1,0 +1,42 @@
+predicament = viewsupereasyQuest1
+    map=
+    %playerName%,
+
+    My professor is a
+    stickler for spelling,
+    and I just realized
+    that I made a typo on
+    my final. Please edit
+    the file before he
+    returns to his desk.
+
+    -%girlname%
+    /map
+    set reward = 125
+    function = jobview
+/predicament
+
+predicament = viewsupereasyQuest2
+    map=
+    %playerName%,
+
+    I sent an email to my
+    girlfriend admitting
+    what really happened.
+    Can you hack her
+    account and delete
+    that for me?
+
+    -%jerkname%
+    /map
+    set reward = 100
+    function = jobview
+/predicament
+
+
+predicament = acceptviewsupereasyQuest1
+    exit = supereasyQuest1entry
+/predicament
+predicament = acceptviewsupereasyQuest2
+    exit = supereasyQuest2entry
+/predicament

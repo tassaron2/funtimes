@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
-# very early main.py for Tarasius
+# main.py for an example game
 # last modified 2017/04/02
 # created 2017/03/23 by tassaron
 #
@@ -19,14 +19,17 @@ import funplayer
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
 playerData = {
-    'playerName'      : 'Tarasius',
     'playerHP'        : 100,
-    'playerSP'        : 0,
-    'supereasyQuest1' : 0,
-    'supereasyQuest2' : 0,
 }
 
 def main(startat='mainmenu'):
+    '''
+    This is a basic main.py with just a skeleton for a
+    game in it, for the sake of reference. To try it
+    with predicaments that work with it, rename
+    the folder /example-pred to /pred (rename the
+    existing /pred of course).
+    '''
     funplayer.set_variables(playerData)
     funplayer.set_variables(forExitcode(startat))
     funplayer.set_variables({'seenIntro':0})
@@ -55,9 +58,22 @@ def main(startat='mainmenu'):
 
 def forExitcode(predname):
     varsForPredname = {
-    'mainmenu'          :   {},
-    'supereasyQuest1entry'   :   {
-            'test'      : 'hey',
+    'mainmenu' : {},
+    'entry' : {
+        'finalQ' : 6,
+        'badguyQ' : 0,
+        'badguyQlabel' : 'Respond to Probe',
+        'heardthatnoise' : 0,
+        'followed' : 0,
+        'badfollow' : 0,
+        },
+    'kill' : {},
+    'somewhereelse' : {
+        'finalQ' : 6,
+        'badguyQ' : 0,
+        'badguyQlabel' : 'Respond to Probe',
+        'nomorekey' : 0,
+        'tick' : 0
         },
     }
 
