@@ -2,7 +2,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # funplayer.py
-# last modified 2017/03/26
+# last modified 2017/04/02
 # created 2017/03/23
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
@@ -14,6 +14,7 @@
 # TODO: Make window properly resizeable, by keeping mapwindow/controls static
 #       and scaling the textwindow to fill more space
 # TODO: ctrl+up enlarges text
+# TODO: Mode that puts buttons on the right instead of map, for main menu
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -35,14 +36,26 @@ def play(predname='start'):
         thispred = Predicament(predname, predicaments[predname].pred)
     thispred.play()
 
+def set_mode(value='MAP'):
+    if value not in ['MENU','MAP']:
+        print("Unknown mode %s" % value)
+    else:
+        Funwindow.mode = value
+        Funwindow.modeVars = Funwindow.modeVarDicts[value]
+
 def set_variables(dictionary):
     for key, value in dictionary.items():
         funtimes.Predicament.variables[key] = value
+
+def delete_memory():
+    global predicaments
+    predicaments = {}
 
 class Predicament:
     # does computation of Predicament objects created by funtimes module
     # flexible so a non-gtk window could be used if it has the same interface
     # e.g. easier to make it work in terminal or on a webpage
+    
     def __init__(self, predname, oldpred=None):
         # each instance only plays 1 predicament
         while True:
@@ -82,14 +95,16 @@ class Predicament:
         # tick to get any extra text or actions
         self.tick()
 
-        if 'quit' in funtimes.predicaments:
-            window.arrows.add('Quit', 'quit')
+        if 'quit' in funtimes.predicaments\
+        and 'quit' in Funwindow.modeVars:
+            window.arrows.add(Funwindow.modeVars['quit'], 'quit')
         # make the arrow buttons
         for label, goto in self.pred.arrows:
             # disabled directions have None as goto
             window.arrows.add(label, goto)
         # make a link back to this predicament ('Wait')
-        window.arrows.add('Wait', self.pred.name)
+        if 'wait' in Funwindow.modeVars:
+            window.arrows.add(Funwindow.modeVars['wait'], self.pred.name)
         # make the action buttons
         for label, goto in self.pred.actions:
             window.actions.add(label, goto)
@@ -166,11 +181,11 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf
 
 class getInput:
-    exitcode = 0
+    exitcode = 9
     
     @staticmethod
     def kill(*args):
-        getInput.exitcode = 0
+        getInput.exitcode = 9
         getInput.main_quit()
         
     @staticmethod
@@ -183,6 +198,7 @@ class getInput:
         Gtk.main_quit()
         
 def main():
+    #gtkStyle()    
     Gtk.main()
     return getInput.exitcode
 
@@ -194,7 +210,77 @@ def goto(*args):
     newpred = args[-1]
     play(newpred)
 
+def gtkStyle():
+        css = """
+GtkWindow {
+    color: %s;
+    background-color: %s;
+}
+GtkButton GtkLabel {
+    color: %s;
+}
+GtkButton:active GtkLabel {
+    color: %s;
+}
+GtkButton:active:hover GtkLabel {
+    color: %s;
+}
+GtkButton {
+    border-width: 0 0 0 0;
+    border-image: none;
+    border-radius: 0;
+    background-image:none;
+    background-color: %s;
+}
+GtkButton:active {
+    border-width: 0 0 0 0;
+    border-image: none;
+    border-radius: 0;
+    background-image:none;
+    background-color: %s;
+}
+        """ % (Funwindow.color['text'],\
+               Funwindow.color['bg'],\
+               Funwindow.color['inactive'],\
+               Funwindow.color['lighttext'],\
+               Funwindow.color['lighttext'],\
+               Funwindow.color['bg'],\
+               Funwindow.color['lightbg'])
+        css = str.encode(css)
+        style_provider = Gtk.CssProvider()
+        style_provider.load_from_data(css)
+
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            style_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
 class Funwindow(Gtk.Window):
+    mode = 'MAP'
+    modeVarDicts = {
+        'MAP'  : { 'quit' : 'Log Out',
+                   'wait' : 'Wait',
+                 },
+        'MENU' : { 'quit' : 'Quit',
+                 },
+    }
+    modeVars = modeVarDicts['MAP']
+
+    colorChoice = {
+        'generic' : {
+                'inactive' : '#696969',
+                'lighttext' : '#151515',
+                },
+        'idk' : {
+                'inactive' : '#b58900',
+                'text' : '#8C9440',
+                'lighttext' : '#B5BD68',
+                'bg' : '#1D1F21',
+                'lightbg' : '#373B41',
+                }
+    }
+    color = colorChoice['generic']
     height = 320
     width = 648
     
@@ -254,6 +340,7 @@ class Body(Gtk.Box):
         # make a scrolling window for the text
         self.textBox = TextBox()
         textWindow = Gtk.ScrolledWindow()
+        # connect window-size-change event to function which scrolls down
         textWindow.connect('size-allocate', self.scrollTextBox)
         textWindow.add_with_viewport(self.textBox)
         textWindow.set_size_request(Funwindow.width-256, Funwindow.height-64)
@@ -276,7 +363,8 @@ class Body(Gtk.Box):
                     self.lowBox.remove(eval('self.%s' % box))
             elif box=='textBox':
                 for label in self.textBox.newRows:
-                    label.set_markup("<span color='#808080'>%s</span>" % label.get_text())
+                    label.set_markup("<span color='%s'>%s</span>"\
+                        % (Funwindow.color['inactive'], label.get_text()))
         self.makeTopBox()
         self.makeLowBox()
 
@@ -286,7 +374,10 @@ class Body(Gtk.Box):
         return (child for child in self.__dict__ if child not in highLevelBoxes)
 
     def makeTopBox(self):
-        self.mapBox = MapBox()
+        if Funwindow.mode=='MAP':
+            self.mapBox = MapGrid()
+        elif Funwindow.mode=='MENU':
+            self.mapBox = MapBox()
         self.topBox.pack_start(self.mapBox, False, False, 0)
 
     def makeLowBox(self):
@@ -301,6 +392,7 @@ class ActionButtons(Gtk.Box):
     def __init__(self):
         super().__init__()
         self.set_border_width(4)
+        self.set_spacing(4)
     
     def makeButton(self, label, gotoPred):
         button = Gtk.Button()
@@ -337,10 +429,13 @@ class TextBox(Gtk.Box):
             item = '<b>%s</b>: %s' % (dudename, item)
         lines = wrap(item,38)
         for i, line in enumerate(lines):
-            if i==0:
-                line = "<span font_desc='unifont' size='large'>• %s</span>" % line
+            colour = getColor('text')
+            if i==0 and Funwindow.mode=='MAP':
+                line = "<span %s font_desc='unifont' size='large'>• %s</span>"\
+                        % (colour, line)
             else:
-                line = "<span font_desc='unifont' size='large'>%s</span>" % line
+                line = "<span %s font_desc='unifont' size='large'>%s</span>"\
+                       % (colour, line)
             widget = Gtk.Label()
             widget.set_markup(line)
             widget.set_halign(Gtk.Align.START)
@@ -350,7 +445,10 @@ class TextBox(Gtk.Box):
 
     def newName(self, name):
         widget = Gtk.Label()
-        widget.set_markup('<span font_desc="sans" size="x-large" underline="low"><b>%s</b></span>' % name)
+        colour = getColor('lighttext')
+        widget.set_markup(\
+        '<span %s font_desc="sans" size="x-large" underline="low"><b>%s</b></span>'\
+         % (colour, name))
         widget.set_halign(Gtk.Align.START)
         self._newRows.append(widget)
         self.pack_start(widget, False, False, 1)
@@ -367,8 +465,25 @@ class TextBox(Gtk.Box):
                     continue
                 yield child
 
+class MapBox(Gtk.Box):
+    '''MapBox for Funwindow's MENU mode.
+    Uses map as bold text.'''
+    def __init__(self):
+        super().__init__()
+        self.set_orientation(Gtk.Orientation.VERTICAL)
+        self.set_border_width(4)
+        
+    def create(self, tilemap, tileForChar):
+        for line in tilemap:
+            line = funtimes.replaceVariables(line)
+            widget = Gtk.Label()
+            widget.set_markup('<span font_desc="sans" size="x-large"><b>%s</b></span>' % line)
+            widget.set_halign(Gtk.Align.END)
+            self.pack_start(widget,False,False,0)
 
-class MapBox(Gtk.Grid):
+class MapGrid(Gtk.Grid):
+    '''MapBox for Funwindow's MAP mode.
+    Replaces characters on map with tiles.'''
     def __init__(self):
         super().__init__()
         self.set_border_width(4)
@@ -404,7 +519,13 @@ class OKWindow(Gtk.Dialog):
 
 # GLOBALS
 window = Funwindow()
-predicaments = {}
+delete_memory()
+
+def getColor(key):
+    if key in Funwindow.color:
+        return "color='%s'" % Funwindow.color[key]
+    else:
+        return ''
 
 if __name__=='__main__':
     # EXAMPLE OF HOW TO USE THIS MODULE IN OTHER SCRIPT

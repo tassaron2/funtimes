@@ -2,7 +2,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # funtimes.py
-# last modified 2017/03/30
+# last modified 2017/04/02
 # resurrected by tassaron 2017/03/23
 # from code by ninedotnine & tassaron 2013/05/24-2013/06/30
 # inspired by a batch file game made in 2008
@@ -36,23 +36,10 @@ class BadPredicamentError(Exception):
 
 class Parser:
     def _parse_everything(self, filetype, mydir):
-        isPredicament=False; isDude=False
-        
-        #=~=~=~ TRY TO OPEN THE FILE CONTAINING THIS PREDICAMENT OR DUDE
-        self.filename, lineNo = tryToOpen(mydir, filetype, self.name)
-
-        with open(os.path.join(mydir, self.filename), 'r') as fp:
-            # find line in file where this predicament begins...
-            if filetype=='pred':
-                isPredicament=True
-                whatIAm='predicament'
-            else:
-                isDude=True
-                whatIAm='dude'
-                
-            busy = findStartPoint(fp, lineNo, whatIAm, self.name)
-            # finally, we start actually assigning the data
-
+        '''
+        Central hub from which all pred and dude file parsing is done.
+        '''
+        def init_trackers(isPredicament,isDude):
             if isPredicament:
                 # reset if tracker variables
                 Parser.readingIfLevel = 0
@@ -62,7 +49,96 @@ class Parser:
             elif isDude:
                 readingTick = 0
                 readingTickPassThru = self
+            return readingTick, readingTickPassThru
 
+        def init_env_predname(isPredicament):
+            oldpredname = None
+            if isPredicament and not self.isFunction:
+                # set environment variable for tracking current predicament
+                try:
+                    #store old predname in case this ends up being a goto
+                    oldpredname = str(Predicament.variables['predname'])
+                except KeyError:
+                    # this is the first predicament so whatever
+                    oldpredname = str(self.name)
+                if not self.goto:
+                    Predicament.variables['predname']=self.name
+            return oldpredname
+
+        def whoAmI(filetype):
+            if filetype=='pred':
+                isDude=False
+                isPredicament=True
+                whatIAm='predicament'
+            else:
+                isDude=True
+                isPredicament=False
+                whatIAm='dude'
+            return whatIAm, isPredicament, isDude
+            
+        def cleanUp(isPredicament, busy):
+            if Parser.readingIfLevel and isPredicament:
+                raise BadPredicamentError(13, self.filename, self.name)
+            elif busy:
+                # should always hit error 4 before this, so it may be redundant
+                raise BadPredicamentError(7, self.filename, self.name)
+
+        def tryToOpen(dir_, filetype, name):
+            try:
+                if filetype=='pred':
+                    filename, lineNo = predicaments[name]
+                elif filetype=='dude':
+                    filename, lineNo = dudes[name]
+                else:
+                    raise KeyError
+            except KeyError:
+                # if the predicament isn't in our master dictionary...
+                raise BadPredicamentError(3, filetype, name)
+            try:
+                open(os.path.join(dir_, filename), 'r')
+            except:
+                raise BadPredicamentError(15, filename, name)
+
+            return filename, lineNo
+
+        def findStartPoint(fp, lineNo, lookingFor, name):
+            # cProfile says this causes barely any overhead even with 1000s of lines
+            # we could do something like this: http://stackoverflow.com/a/620492
+            # however it adds extra complexity w/o any gain, unless file is collosal
+            busy = False # whether we are currently reading something
+            # now get to the right line and test it
+            for line in fp:
+                # count down to the correct line
+                if lineNo > 1:
+                    lineNo -= 1
+                    continue
+                line = line.strip()
+                # we know this is the right line
+                # but don't trust the dictionary & check anyway!
+                if line.find('%s =' % lookingFor) != 0:
+                    raise BadPredicamentError(1, name)
+                # if it's the wrong thing, freak the hell out
+                elif name != line.split('=')[1].strip():
+                    raise BadPredicamentError(2, name)
+                busy = True
+                break
+            if not busy:
+                raise BadPredicamentError(5, filename, name)
+            return True
+
+        whatIAm, isPredicament, isDude = whoAmI(filetype)
+        
+        #=~=~=~ TRY TO OPEN THE FILE CONTAINING THIS PREDICAMENT OR DUDE
+        self.filename, lineNo = tryToOpen(mydir, filetype, self.name)
+
+        with open(os.path.join(mydir, self.filename), 'r') as fp:
+            # find line in file where this predicament begins...
+            busy = findStartPoint(fp, lineNo, whatIAm, self.name)
+            # initialize some tracking variables
+            readingTick, readingTickPassThru = init_trackers(isPredicament,isDude)
+            oldpredname = init_env_predname(isPredicament)
+            
+            # finally, we start actually assigning the data
             # line should be true (it should still be the new line)
             line=True
             while line:
@@ -133,7 +209,7 @@ class Parser:
                     self._parse_sound(value.strip())
                     continue
                 elif key == 'type' and isPredicament:
-                    self._parse_type(value.strip())
+                    self._parse_type(value.strip(),oldpredname)
                     continue
                 elif key == 'map' and isPredicament:
                     self._parse_map(fp, line)
@@ -151,14 +227,7 @@ class Parser:
                     raise BadPredicamentError(14, whatIAm, self.filename, self.name,
                                               key.strip())
 
-        if Parser.readingIfLevel and isPredicament:
-            raise BadPredicamentError(13, self.filename, self.name)
-        elif busy:
-            # should always hit error 4 before this, so it may be redundant
-            raise BadPredicamentError(7, self.filename, self.name)
-
-        if isPredicament and not self.goto:
-            Predicament.variables['predname']=self.name
+        cleanUp(isPredicament, busy)
 
     def _parse_text(self,value,isEntry,readingTick):
         # remove only the first space if any
@@ -228,7 +297,7 @@ class Predicament(Parser):
     # dictionary of pred variables
     variables = {}
 
-    def __init__(self, name):
+    def __init__(self, name, isFunction=False):
         # gotta have more comments than code
         Predicament.numPredicaments += 1
 
@@ -256,6 +325,8 @@ class Predicament(Parser):
         self._pregenDudes = []
         # Fake dudes... don't have names, used for entrytext currently
         self.fakeDudes = []
+        # whether or not this is being loaded as a function
+        self.isFunction=isFunction
 
         # destination that funplayer should goto right away
         # i.e. if not None then user won't see this pred
@@ -281,7 +352,7 @@ class Predicament(Parser):
         if value not in predicaments:
             raise BadPredicamentError(999)
         else:
-            newfunction = Predicament(value)
+            newfunction = Predicament(value,True)
         for thing in newfunction.__dict__:
             forbidden = ('name', 'sound','inputtype','filename','result')
             if thing in forbidden:
@@ -307,10 +378,11 @@ class Predicament(Parser):
             raise BadPredicamentError(681)
         self.dudeLocations[key] = (int(x.strip()), int(y.strip()))
 
-    def _parse_type(self,value):
+    def _parse_type(self,value,oldpredname):
         # TODO: type = textinput -> result
         self.inputtype = value
         if value.startswith('goto'):
+            Predicament.variables['predname']=oldpredname
             try:
                 keyw, dest = value.split('->')
                 self.inputtype = keyw.strip()
@@ -482,6 +554,7 @@ class Dude(Parser):
         # events this dude is really persistent about
         self.everytick = [] # a list of ('key','value') pairs
         self.sound=None
+        self.isFunction=False
 
         if self.name:
             # read dude file
@@ -819,24 +892,6 @@ def skipIf(fp, predname):
         or nextline.find("/dude") == 0:
             raise BadPredicamentError(13, 'idk', predname)
 
-def tryToOpen(dir_, filetype, name):
-    try:
-        if filetype=='pred':
-            filename, lineNo = predicaments[name]
-        elif filetype=='dude':
-            filename, lineNo = dudes[name]
-        else:
-            raise KeyError
-    except KeyError:
-        # if the predicament isn't in our master dictionary...
-        raise BadPredicamentError(3, filetype, name)
-    try:
-        open(os.path.join(dir_, filename), 'r')
-    except:
-        raise BadPredicamentError(15, filename, name)
-
-    return filename, lineNo
-
 def getNonBlankLine(fp):
     line = ''
     while line == '' or line.startswith("#"):
@@ -846,31 +901,6 @@ def getNonBlankLine(fp):
             raise BadPredicamentError(17, fp.name)
         line = line.strip()
     return line
-
-def findStartPoint(fp, lineNo, lookingFor, name):
-    # cProfile says this causes barely any overhead even with 1000s of lines
-    # we could do something like this: http://stackoverflow.com/a/620492
-    # however it adds extra complexity w/o any gain, unless file is collosal
-    busy = False # whether we are currently reading something
-    # now get to the right line and test it
-    for line in fp:
-        # count down to the correct line
-        if lineNo > 1:
-            lineNo -= 1
-            continue
-        line = line.strip()
-        # we know this is the right line
-        # but don't trust the dictionary & check anyway!
-        if line.find('%s =' % lookingFor) != 0:
-            raise BadPredicamentError(1, name)
-        # if it's the wrong thing, freak the hell out
-        elif name != line.split('=')[1].strip():
-            raise BadPredicamentError(2, name)
-        busy = True
-        break
-    if not busy:
-        raise BadPredicamentError(5, filename, name)
-    return True
 
 def findAllDefinitions(preddir, filetype):
     # populate a dictionary with locations of all known definitions of this filetype

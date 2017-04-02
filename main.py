@@ -2,7 +2,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # main.py for an example game
-# last modified 2017/03/31
+# last modified 2017/04/02
 # created 2017/03/23 by tassaron
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
@@ -18,35 +18,39 @@ import funplayer
 #CONFIGPATH = "%s/.config/file.conf" % os.getenv("HOME")
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
-'''
-class MainMenuWindow(Gtk.Window):
-    def __init__(self):
-        super().__init__()
-        self.connect("delete-event", Gtk.main_quit)
-'''
+playerData = {
+    'playerHP' : 100
+}
 
-def main(startat='entry'):
+def main(startat='mainmenu'):
+    funplayer.set_variables(playerData)
     funplayer.set_variables(forExitcode(startat))
+    funplayer.set_mode('MENU')
     funplayer.play(startat)
+    newpred = startat
     
     while True:
         output = funplayer.main()
         if type(output)==int:
-            # user closed window
-            quit(0)
-        newpred = wtfIsThis(output)
+            # user hit quit button
+            if output==9 and newpred!='mainmenu':
+                newpred = 'mainmenu'
+            else:
+                quit(0)
+        else:
+            newpred = output
         funplayer.set_variables(forExitcode(newpred))
+        funplayer.set_variables(playerData)
+        if newpred=='mainmenu':
+            funplayer.set_mode('MENU')
+        else:
+            funplayer.set_mode()
+        funplayer.delete_memory()
         funplayer.play(newpred)
-
-def wtfIsThis(exitcode):
-    if exitcode=='punchedfollower':
-        return 'somewhereelse'
-    else:
-        # idk so quit the game
-        return 'kill'
 
 def forExitcode(predname):
     varsForPredname = {
+    'mainmenu' : {},
     'entry' : {
         'finalQ' : 6,
         'badguyQ' : 0,

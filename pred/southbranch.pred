@@ -55,7 +55,7 @@ predicament = qwerty
 /predicament
 
 predicament = punchfollower
-    exit = punchedfollower
+    exit = somewhereelse
 /predicament
 
 predicament = somewhereelse

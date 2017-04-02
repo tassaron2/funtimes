@@ -1,0 +1,14 @@
+predicament = mainmenu
+    name = Main Menu
+    map =
+
+    
+    Current HP: %playerHP%
+    /map
+    text=This is the main menu. Hard as it may seem to believe.
+    action = Start Game -> goentry
+/predicament
+
+predicament = goentry
+    exit = entry
+/predicament

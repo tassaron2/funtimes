@@ -193,9 +193,15 @@ predicament = generateGirlName
 /predicament
 
 predicament = badfollow
+    if predname is not walkaround2N
+        and
     if badfollow is 1
         then
         dude = J -> badguy
         J = 4, 4
+    /if
+    if playerHP is < 11 
+        then
+        text = You are dead!
     /if
 /predicament

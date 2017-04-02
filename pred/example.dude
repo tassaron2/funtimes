@@ -61,6 +61,8 @@ dude = badguy
     if badguyQ is < 6
         then
         text = %probeAttackMsg%
+        subtract 10 from playerHP
+        text = You have %playerHP%HP left!
     /if
     
     if badguyQ is 4
