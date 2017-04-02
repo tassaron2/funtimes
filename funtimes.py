@@ -15,9 +15,6 @@
 # defines objects used by funplayer.py to play a game
 #
 # TODO: different fatality levels for BadPredicamentError & option to ignore minor
-# TODO: maybe make generator for returning relevant lines from a pred or dude file?
-#       such a thing could encompass the doWeirdLines family of functions
-# TODO: an object for if could probably track its state instead of globals
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -26,7 +23,7 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import os
 import random
-import itertools
+from itertools import chain
 
 class BadPredicamentError(Exception):
     def __init__(self, code=0, *args):
@@ -39,8 +36,7 @@ class BadPredicamentError(Exception):
 
 class Parser:
     def _parse_everything(self, filetype, mydir):
-        isPredicament=False
-        isDude=False
+        isPredicament=False; isDude=False
         
         #=~=~=~ TRY TO OPEN THE FILE CONTAINING THIS PREDICAMENT OR DUDE
         self.filename, lineNo = tryToOpen(mydir, filetype, self.name)
@@ -59,8 +55,8 @@ class Parser:
 
             if isPredicament:
                 # reset if tracker variables
-                global readingIfLevel, tempIfLevel
-                readingIfLevel = 0; tempIfLevel = 0
+                Parser.readingIfLevel = 0
+                Parser.tempIfLevel = 0
                 readingTick = -1
                 readingTickPassThru = None
             elif isDude:
@@ -124,6 +120,9 @@ class Parser:
                 elif key == 'action':
                     self._parse_action(value,line,readingTick)
                     continue
+                elif key == 'function' and isPredicament:
+                    self._parse_function(value.strip())
+                    continue
                 elif key == 'sound':
                     self._parse_sound(value.strip())
                     continue
@@ -146,7 +145,7 @@ class Parser:
                     raise BadPredicamentError(14, whatIAm, self.filename, self.name,
                                               key.strip())
 
-        if readingIfLevel and whatIAm=='predicament':
+        if Parser.readingIfLevel and isPredicament:
             raise BadPredicamentError(13, self.filename, self.name)
         elif busy:
             # should always hit error 4 before this, so it may be redundant
@@ -238,7 +237,7 @@ class Predicament(Parser):
         self.arrowLabel = ['^', 'v', '<', '>']
         self.arrowGoto = [None, None, None, None]
         #=~=~ Dudes
-        # a list of (dudesymbol, dudename) tuples
+        # a list of dudenames
         self._dudes = []
         # symbols that represent the parellel dude on a map
         self.dudesymbols = []
@@ -267,6 +266,26 @@ class Predicament(Parser):
     '''
         Parsing methods for the initialization
     '''
+
+    def _parse_function(self, value):
+        if value not in predicaments:
+            raise BadPredicamentError(999)
+        else:
+            newfunction = Predicament(value)
+        for thing in newfunction.__dict__:
+            forbidden = ('name', 'sound','inputtype','filename','result')
+            if thing in forbidden:
+                continue
+            functhing =getattr(newfunction, thing)
+            if type(functhing)==list:
+                realthing = getattr(self, thing)
+                if thing in ('arrowLabel','arrowGoto'):
+                    for i, arrow in enumerate(functhing):
+                        if arrow:
+                            realthing[i] = arrow
+                else:
+                    for line in functhing:
+                        realthing.append(line)
 
     def _parse_type(self,value):
         # TODO: type = textinput -> result
@@ -301,7 +320,7 @@ class Predicament(Parser):
             raise BadPredicamentError(42, self.filename, self.name, value)
         if thisDudesSymbol.strip() not in self.dudesymbols:
             self._pregenDudes.append(Dude(thisDudesName.strip()))
-            self._dudes.append((thisDudesSymbol.strip(), thisDudesName.strip()))
+            self._dudes.append(thisDudesName.strip())
             self.dudesymbols.append(thisDudesSymbol.strip())
         else:
             raise BadPredicamentError(44, self.filename, self.name)
@@ -364,18 +383,13 @@ class Predicament(Parser):
                 return replaceTilde(dudeObj.tile)
         return char
     
-    @property
-    def dudes(self):
-        # orphan code :[
-        return (dudename for dudesymbol, dudename in self._dudes)
-    
     def dudesForTick(self, tickNum):
         '''
         returns list of dudenames who want to do something this tickNum
         also small arachnids, part of the order Parasitiformes
         '''
         # iterate through our dudes
-        for dudeObj in itertools.chain(self._pregenDudes, self.fakeDudes):
+        for dudeObj in chain(self._pregenDudes, self.fakeDudes):
             if tickNum=='everytick':
                 if len(dudeObj.everytick)==0:
                     continue
@@ -429,7 +443,6 @@ class Dude(Parser):
         imposter._parse_text(text, False, 1)
         imposter.ticks.append(1)
         return imposter
-
         
     '''
         EVENTS
@@ -520,10 +533,9 @@ def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
     # readingTick defaults to -1 for Predicaments
     # when readingTick is 0 or higher, it's for use by Dudes
     #=~=~=~=~ '/' BLOCK TERMINATORS
-    global readingIfLevel
     if line.find("/if") == 0:
-        if readingIfLevel > 0:
-            readingIfLevel -= 1
+        if Parser.readingIfLevel > 0:
+            Parser.readingIfLevel -= 1
             return True
         raise BadPredicamentError(12, filename, name)
     #=~=~=~=~ IF
@@ -629,10 +641,9 @@ def doMath(filename, name, line, operator, preposition, readingTick=-1,self=None
 def computeIf(fp, name, line, readingTick=None):
     # here's where I jumped through a flaming hoop
     # to avoid changing ninedotnine's doIf() code :P
-    global readingIfLevel
     if doIf(fp, name, line, readingTick):
         # if the condition is true, read normally
-        readingIfLevel += 1
+        Parser.readingIfLevel += 1
     else:
         # if the condition isn't true,
         # discard lines until we reach end if
@@ -642,8 +653,6 @@ def doIf(fp, name, line, readingTick=None):
     # code from 2013
     # figures out whether to read conditional stuff in pred definitions
     # first, parse the line itself to get key and value
-
-    global tempIfLevel, readingIfLevel
 
     # try splitting the if on 'is' or '='
     # nested trys are ugly, we could maybe do something better
@@ -661,7 +670,7 @@ def doIf(fp, name, line, readingTick=None):
     value = replaceVariables(value)
 
     # why is this happening in here? global vars >:O
-    tempIfLevel = readingIfLevel + 1
+    Parser.tempIfLevel = Parser.readingIfLevel + 1
 
     # make sure key exists
     if key not in Predicament.variables.keys():
@@ -743,13 +752,12 @@ def doIf(fp, name, line, readingTick=None):
     raise BadPredicamentError(11, fp.name, name, line)
 
 def skipIf(fp, predname):
-    global readingIfLevel, tempIfLevel
-    while readingIfLevel < tempIfLevel:
+    while Parser.readingIfLevel < Parser.tempIfLevel:
         nextline = getNonBlankLine(fp)
         if nextline.startswith("/if"):
-            tempIfLevel -= 1
+            Parser.tempIfLevel -= 1
         elif nextline.startswith("if "):
-            tempIfLevel += 1
+            Parser.tempIfLevel += 1
         elif nextline.find("/predicament") == 0\
         or nextline.find("/tick") == 0\
         or nextline.find("/dude") == 0:
