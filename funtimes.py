@@ -18,9 +18,6 @@
 # TODO: maybe make generator for returning relevant lines from a pred or dude file?
 #       such a thing could encompass the doWeirdLines family of functions
 # TODO: an object for if could probably track its state instead of globals
-# TODO: DudeAirport queue for dudes moving to other rooms?
-# TODO: main cause of slowness is currently tile()'s use of os stat()
-#       could try to eliminate reloading images that didn't change
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -41,6 +38,140 @@ class BadPredicamentError(Exception):
         quit()
 
 class Parser:
+    def _parse_everything(self, filetype, mydir):
+        isPredicament=False
+        isDude=False
+        
+        #=~=~=~ TRY TO OPEN THE FILE CONTAINING THIS PREDICAMENT OR DUDE
+        self.filename, lineNo = tryToOpen(mydir, filetype, self.name)
+
+        with open(os.path.join(mydir, self.filename), 'r') as fp:
+            # find line in file where this predicament begins...
+            if filetype=='pred':
+                isPredicament=True
+                whatIAm='predicament'
+            else:
+                isDude=True
+                whatIAm='dude'
+                
+            busy = findStartPoint(fp, lineNo, whatIAm, self.name)
+            # finally, we start actually assigning the data
+
+            if isPredicament:
+                # reset if tracker variables
+                global readingIfLevel, tempIfLevel
+                readingIfLevel = 0; tempIfLevel = 0
+                readingTick = -1
+                readingTickPassThru = None
+            elif isDude:
+                readingTick = 0
+                readingTickPassThru = self
+
+            # line should be true (it should still be the new line)
+            line=True
+            while line:
+                if isDude and readingTick != 0 and readingTick not in self.ticks:
+                    # if reading a new tick, append to list of ticks this dude wants in on
+                    self.ticks.append(readingTick)
+                
+                line = getNonBlankLine(fp)
+
+                #=~  FIRST DO STUFF WITHOUT = IN IT
+                if line.find("/%s" % whatIAm) == 0:
+                    busy = False
+                    break
+                if line.strip() == 'quit':
+                    # tell funplayer to quit the game
+                    self.inputtype = 'quit'
+                    continue
+                if isDude and line.find("/tick") == 0:
+                    readingTick=0
+                    continue
+                if doWeirdLines(fp, self.filename, self.name, line, readingTick, readingTickPassThru):
+                    # if this returns True then it did the parsing work for us
+                    continue
+
+                #=~=~=~=~ NORMAL STUFF THAT USES =
+                try:
+                    key, value = line.split('=',1)
+                except ValueError:
+                    raise BadPredicamentError(18, self.filename, self.name, line)
+
+                key = key.rstrip().lower()
+                if key == whatIAm:
+                    # we're in a new predicament without closing the last one.
+                    # the pred file must be invalid.
+                    raise BadPredicamentError(4, self.filename, whatIAm, self.name, whatIAm)
+                elif key.startswith('exit') and isPredicament:
+                    # tell funplayer to close the window
+                    self.inputtype = 'exit%s' % value.strip()
+                    continue
+                elif key == 'tick' and isDude:
+                    try:
+                        readingTick = int(value.strip())
+                        continue
+                    except TypeError:
+                        raise BadPredicamentError(43, filename, self.name, value.strip())
+                elif key == 'text':
+                    self._parse_text(value.strip(),False,readingTick)
+                    continue
+                elif key == 'tile' and isDude:
+                    self.tile = value.strip()
+                    continue
+                elif key == 'entry' and isPredicament:
+                    self._parse_text(value.strip(),True,readingTick)
+                    continue
+                elif key == 'action':
+                    self._parse_action(value,line,readingTick)
+                    continue
+                elif key == 'sound':
+                    self._parse_sound(value.strip())
+                    continue
+                elif key == 'type' and isPredicament:
+                    self._parse_type(value.strip())
+                    continue
+                elif key == 'map' and isPredicament:
+                    self._parse_map(fp, line)
+                    continue
+                elif key == 'name':
+                    self._parse_name(value.strip(), readingTick)
+                    continue
+                elif key == 'dude' and isPredicament:
+                    self._parse_dude(value.strip())
+                    continue
+                elif key in ('up', 'down', 'left', 'right') and isPredicament:
+                    self._parse_arrow(key, value.strip())
+                    continue
+                else:
+                    raise BadPredicamentError(14, whatIAm, self.filename, self.name,
+                                              key.strip())
+
+        if readingIfLevel and whatIAm=='predicament':
+            raise BadPredicamentError(13, self.filename, self.name)
+        elif busy:
+            # should always hit error 4 before this, so it may be redundant
+            raise BadPredicamentError(7, self.filename, self.name)
+
+    def _parse_text(self,value,isEntry,readingTick):
+        # remove only the first space if any
+        if value and value[0] == ' ':
+            value = value[1:]
+        # add each line of text onto the prev line of text
+        if readingTick==-1:
+            value = replaceVariables(value)
+        if readingTick==-1 and not isEntry:
+            self._text.append(value)
+        elif readingTick==-1 and isEntry:
+            # make a fake dude to play this text on tick1
+            self.fakeDudes.append(Dude.forEntrytext(value))
+        elif readingTick>0:
+            # this event is for specific tick
+            self._events.append(('text',value))
+            self.eventNums.append(readingTick)
+        elif readingTick==0:
+            # this event is for every tick
+            self.everytick.append(('text',value))
+            
     def _parse_action(self,value,line,readingTick=-1):
         try:
             action, goto = value.split('->')
@@ -57,6 +188,19 @@ class Parser:
             self._events.append(('action','%s=%s' % (action, goto)))
             self.eventNums.append(readingTick)
 
+    def _parse_name(self, value, readingTick):
+        if readingTick==-1:
+            # predicament
+            self.mapname = replaceVariables(value)
+        else:
+            self.nick = replaceVariables(value)
+
+    def _parse_sound(self,value):
+        if not self.sound:
+            self.sound=[value]
+        else:
+            self.sound.append(value)
+
 class Predicament(Parser):
     """
     when creating a Predicament, pass in a string holding the name.
@@ -69,9 +213,9 @@ class Predicament(Parser):
     numPredicaments = 0
     # tiles for objects that are not dudes
     tiles = { '#' : '~/wall.png',
-              '>' : '~/wallH.png',
-              '^' : '~/wallV.png',
-              ' ' : '~/floor.png',
+              '>' : '~/wall.png',
+              '^' : '~/wall.png',
+              ' ' : '',
             }
     # dictionary of pred variables
     variables = {}
@@ -118,106 +262,11 @@ class Predicament(Parser):
         self.mapname = None
 
         # now read the pred file to fill in these attributes
-        self._parse_everything()
-
-    def _parse_everything(self):
-        #=~=~=~ TRY TO OPEN THE PRED FILE CONTAINING OUR PREDICAMENT
-        self.filename, lineNo = tryToOpen(PREDDIR, 'pred', self.name)
-
-        with open(os.path.join(PREDDIR, self.filename), 'r') as fp:
-            # find line in file where this predicament begins...
-            busy = findStartPoint(fp, lineNo, 'predicament', self.name)
-
-            # finally, we start actually assigning the data
-            global readingIfLevel, tempIfLevel
-            readingIfLevel = 0; tempIfLevel = 0
-
-            # line should be true (it should still be the new pred line)
-            line=True
-            while line:
-                line = getNonBlankLine(fp)
-
-                #=~  FIRST DO STUFF WITHOUT = IN IT
-                if line.find("/predicament") == 0:
-                    busy = False
-                    break
-                if line.strip() == 'quit':
-                    # tell funplayer to quit the game
-                    self.inputtype = 'quit'
-                    continue
-                if doWeirdLines(fp, self.filename, self.name, line):
-                    # if this returns True then it did the parsing work for us
-                    continue
-
-                #=~=~=~=~ NORMAL STUFF THAT USES =
-                try:
-                    key, value = line.split('=',1)
-                except ValueError:
-                    raise BadPredicamentError(18, self.filename, self.name, line)
-
-                key = key.rstrip().lower()
-                if key == 'predicament':
-                    # we're in a new predicament without closing the last one.
-                    # the pred file must be invalid.
-                    raise BadPredicamentError(4, self.filename, self.name)
-                elif key.startswith('exit'):
-                    # tell funplayer to close the window
-                    self.inputtype = 'exit%s' % value.strip()
-                    continue
-                elif key == 'text':
-                    self._parse_text(value.strip())
-                    continue
-                elif key == 'entry':
-                    self._parse_text(value.strip(),isEntry=True)
-                    continue
-                elif key == 'action':
-                    self._parse_action(value,line)
-                    continue
-                elif key == 'sound':
-                    self._parse_sound(value.strip())
-                    continue
-                elif key == 'type':
-                    self._parse_type(value.strip())
-                    continue
-                elif key == 'result':
-                    self.result = value.strip()
-                    continue
-                elif key == 'map':
-                    self.predmap = Predicament.parse_map(fp, self.name, line)
-                    continue
-                elif key == 'name':
-                    self.mapname = value.strip()
-                    continue
-                elif key == 'dude':
-                    self._parse_dude(value.strip())
-                    continue
-                elif key in ('up', 'down', 'left', 'right'):
-                    self._parse_arrow(key, value.strip())
-                    continue
-                else:
-                    raise BadPredicamentError(14, self.filename, self.name,
-                                              key.strip())
-
-        if readingIfLevel:
-            raise BadPredicamentError(13, self.filename, self.name)
-        elif busy:
-            # should always hit error 4 before this, so it may be redundant
-            raise BadPredicamentError(7, self.filename, self.name)
+        self._parse_everything('pred',PREDDIR)
 
     '''
         Parsing methods for the initialization
     '''
-    def _parse_text(self,value,isEntry=False):
-        # remove only the first space if any
-        if value and value[0] == ' ':
-            value = value[1:]
-        # add each line of text onto the prev line of text
-        value = replaceVariables(value)
-        if not isEntry:
-            self._text.append(value)
-        else:
-            # make a fake dude to play this text on tick1
-            self.fakeDudes.append(Dude.forEntrytext(value))
 
     def _parse_type(self,value):
         # TODO: type = textinput -> result
@@ -226,7 +275,7 @@ class Predicament(Parser):
             try:
                 keyw, dest = value.split('->')
                 self.inputtype = keyw.strip()
-                self.goto  = dest.strip()
+                self.goto  = replaceVariables(dest.strip())
             except ValueError:
                 raise BadPredicamentError(41, self.filename, self.name)
         if self.inputtype not in ('normal', 'inputtext', 'goto'):
@@ -245,12 +294,6 @@ class Predicament(Parser):
                 self.arrowGoto[i] = goto.strip()
                 continue
 
-    def _parse_sound(self,value):
-        if not self.sound:
-            self.sound=[value]
-        else:
-            self.sound.append(value)
-
     def _parse_dude(self,value):
         try:
             thisDudesSymbol, thisDudesName = value.split('->')
@@ -263,8 +306,7 @@ class Predicament(Parser):
         else:
             raise BadPredicamentError(44, self.filename, self.name)
 
-    @staticmethod
-    def parse_map(fp, name, line):
+    def _parse_map(self, fp, line):
         # fp and line are things we need to iterate through the pred file
         # name is something we only need to raise errors, to help debug
         maplist = []
@@ -272,9 +314,10 @@ class Predicament(Parser):
             # move down 1 line
             line = fp.readline()
             # stop reading if we encounter an end-block
-            # TODO: if no end-block it will read entire file & cause epic problems ;p
             if line.find('/map') != -1:
                 break
+            elif line.find('/predicament') != -1:
+                raise BadPredicamentError(40, self.filename, self.name, line.strip())
             else:
                 # if the map isn't done yet, add this line onto the map
                 # strip out the terminating newline character on the right
@@ -283,7 +326,7 @@ class Predicament(Parser):
         # deduce how much indentation to remove from the left
         longest = max(maplist)
         indentSize = len(longest) - len(longest.lstrip())
-        return [line[indentSize:] for line in maplist]
+        self.predmap = [line[indentSize:] for line in maplist]
 
     # this isn't used anywhere, but handy for debugging
     def __str__(self):
@@ -291,11 +334,11 @@ class Predicament(Parser):
         
     @property
     def actions(self):
-        return ((replaceVariables(label), goto) for label, goto in zip(self.actionLabel, self.actionGoto))
+        return ((replaceVariables(label), replaceVariables(goto)) for label, goto in zip(self.actionLabel, self.actionGoto))
 
     @property
     def arrows(self):
-        return ((replaceVariables(label), goto) for label, goto in zip(self.arrowLabel, self.arrowGoto))
+        return ((replaceVariables(label), replaceVariables(goto)) for label, goto in zip(self.arrowLabel, self.arrowGoto))
     
     @property
     def text(self):
@@ -320,11 +363,12 @@ class Predicament(Parser):
                 # aha! it's this dude
                 return replaceTilde(dudeObj.tile)
         return char
-
+    
     @property
     def dudes(self):
+        # orphan code :[
         return (dudename for dudesymbol, dudename in self._dudes)
-
+    
     def dudesForTick(self, tickNum):
         '''
         returns list of dudenames who want to do something this tickNum
@@ -339,7 +383,6 @@ class Predicament(Parser):
                 continue
             # return this dude if relevant to the requested tick
             yield dudeObj.name
-
 
 class Dude(Parser):
     '''
@@ -368,93 +411,23 @@ class Dude(Parser):
         self.eventNums = []
         # events this dude is really persistent about
         self.everytick = [] # a list of ('key','value') pairs
+        self.sound=None
 
         if self.name:
             # read dude file
-            self._parse_everything()
+            self._parse_everything('dude',DUDEDIR)
         else:
             # no dudename? must be a fake dude created by the engine
             # there's no file to parse so let's get outta here!
             pass
-
-    def _parse_everything(self):
-        #=~=~=~ TRY TO OPEN THE DUDE FILE CONTAINING OUR DUDE
-        filename, lineNo = tryToOpen(DUDEDIR, 'dude', self.name)
-
-        with open(os.path.join(DUDEDIR, filename), 'r') as fp:
-            # find line in file where this dude is...
-            busy = findStartPoint(fp, lineNo, 'dude', self.name)
-
-            # since 0 is not a real tick, ticks with this variable
-            # set to 0 are actually executed on EVERY tick
-            readingTick=0
-            line=True
-            while line:
-                # if reading a new tick, append to list of ticks this dude wants in on
-                if readingTick != 0 and readingTick not in self.ticks:
-                    self.ticks.append(readingTick)
-                line = getNonBlankLine(fp)
-                #=~  FIRST DO STUFF WITHOUT = IN IT
-                if line.find("/dude") == 0:
-                    busy = False
-                    break
-                elif line.find("/tick") == 0:
-                    readingTick=0
-                    continue
-                if doWeirdLines(fp, filename, self.name, line, readingTick, self):
-                    # if this returns True then it did the parsing work for us
-                    continue
-
-                #=~=~=~=~ NORMAL STUFF THAT USES =
-                try:
-                    key, value = line.split('=',1)
-                except ValueError:
-                    raise BadPredicamentError(18, filename, self.name, line)
-                key = key.rstrip().lower()
-                if key == 'dude':
-                    # we're in a new dude without... ew...
-                    raise BadPredicamentError(4, filename, self.name)
-                elif key == 'tick':
-                    try:
-                        readingTick = int(value.strip())
-                        continue
-                    except TypeError:
-                        raise BadPredicamentError(43, filename, self.name, value.strip())
-                elif key == 'text':
-                    self._parse_text(value, readingTick)
-                    continue
-                elif key == 'tile':
-                    self.tile = value.strip()
-                    continue
-                elif key == 'name':
-                    self.nick = value.strip()
-                elif key == 'action':
-                    self._parse_action(value,line,readingTick)
-    '''
-        Parsing functions for the init method
-    '''
-    def _parse_text(self, value, readingTick):
-        # remove only the first space if any
-        if value and value[0] == ' ':
-            value = value[1:]
-        # add raw text to event queue
-        # variables in text will be expanded later 'in a tick'
-        if readingTick>0:
-            # this event is for specific tick
-            self._events.append(('text',value))
-            self.eventNums.append(readingTick)
-        else:
-            # this event is for every tick
-            self.everytick.append(('text',value))
-
+   
     @staticmethod
     def forEntrytext(text):
-        '''creates a 'fake' dude with a text event for tick 1
+        '''creates a fake dude with a text event for tick 1
         which stores a line of entrytext from a predicament'''
         imposter = Dude(name=None)
-        imposter._parse_text(text, readingTick=1)
-        if 1 not in imposter.ticks:
-            imposter.ticks.append(1)
+        imposter._parse_text(text, False, 1)
+        imposter.ticks.append(1)
         return imposter
 
         
@@ -465,16 +438,16 @@ class Dude(Parser):
         '''returns events for the given tick number'''
         if tick=='everytick':
             for eventType, event in self.everytick:
-                yield Dude.doEvent(eventType, event)
+                yield self.doEvent(eventType, event)
         else:
             for eventNum, event in zip(self.eventNums, self._events):
                 # if this event is for the given tick...
                 if eventNum==tick:
-                    yield Dude.doEvent(event[0],event[1])
+                    yield self.doEvent(event[0],event[1])
 
-    @staticmethod
-    def doEvent(eventType, event):
+    def doEvent(self, eventType, event):
         # do events in this module as they're being returned to funplayer
+        #=~=~ FIRST STUFF WE ACTUALL
         if eventType in ('set','add','subtract'):
             key, value = event.split('=')
             newvalue = value
@@ -490,12 +463,12 @@ class Dude(Parser):
                 Predicament.variables[key]+=newvalue
             elif eventType=='subtract':
                 Predicament.variables[key]-=newvalue
+        elif eventType in ('text', 'action'):
+            event = replaceVariables(event)
+
         # eventTypes we do work for still get passed through
         # in case funplayer wants to do something else with em too
-        if eventType=='text':
-            return eventType, replaceVariables(event)
-        else:
-            return eventType, event
+        return eventType, event
 
 def findVariables(text):
     '''
@@ -513,6 +486,8 @@ def replaceVariables(text):
     replaces '%varname%' in a string with a class variable in Predicament
     stored in the Predicament.variables dict with varname as the key
     '''
+    if text==None:
+        return text
     text = text.strip()
     if '%' not in text or '%' not in text[text.index('%')+1:]:
         # '%' doesn't appear or doesn't appear again after appearing
@@ -778,7 +753,7 @@ def skipIf(fp, predname):
         elif nextline.find("/predicament") == 0\
         or nextline.find("/tick") == 0\
         or nextline.find("/dude") == 0:
-            raise BadPredicamentError(13, predname)
+            raise BadPredicamentError(13, 'idk', predname)
 
 def tryToOpen(dir_, filetype, name):
     try:
@@ -790,7 +765,7 @@ def tryToOpen(dir_, filetype, name):
             raise KeyError
     except KeyError:
         # if the predicament isn't in our master dictionary...
-        raise BadPredicamentError(3, name)
+        raise BadPredicamentError(3, filetype, name)
     try:
         open(os.path.join(dir_, filename), 'r')
     except:
@@ -863,8 +838,8 @@ prederrors = (
     '',
     "what the hell? i can't find predicament %s\ndid you modify it while the game was running?", # 1
     "wrong predicament found: %s",
-    "what?? predicament %s doesn't exist, \nor didn't exist when the game was started! >:(",
-    "in %s, %s was not ended correctly.",
+    "what?? %s %s doesn't exist, \nor didn't exist when the game was started! >:(",
+    "in %s, %s %s was not ended before another %s started.",
     "reached end of %s\nbefore finding %s\ndid you modify it while the game was running?", # 5
     "in %s, %s has a type of '%s'.\ni don't know what the hell that means.",
     "%s doesn't have an /predicament for %s",
@@ -873,10 +848,10 @@ prederrors = (
     "in %s:\npredicament %s has the following line:\n%s\nbut the variable '%s' doesn't exist\nmaybe you made a typo somewhere", # 10
     "in %s:\n%s has %s after if.\nyou forgot to use a keyword, used an invalid keyword,\nor didn't include a condition after 'or' or 'and'.\nkeywords other than 'then' must precede an if.\nonly use 'then' after the final if condition.",
     "in %s, there is an unexpected '/if' in predicament %s",
-    "reached end of predicament %s before '/if'.\nconditionals must remain within originating predicament.",
-    "in %s, %s has a '%s' directive.\ni don't know what the hell that means.",
+    "in %s, reached end of %s before '/if'.\nconditionals must remain within originating predicament.",
+    "in %s, %s %s has a '%s' directive.\ni don't know what the hell that means.",
     "%s could not be found while searching for %s\ndid you rename or delete it while the game was running?", # 15
-    "in %s, %s has no type.",
+    "", # 16
     "reached end of %s while looking for '/if'.\nthis is literally the end of the world.",
     "in %s, %s has no '=' on this line:\n%s\nmaybe you made a typo?",
     "%s refers to a '%s.wav'. there was an error accessing\nor playing this file. did you mistype the name?",
@@ -887,10 +862,10 @@ prederrors = (
     "in %s\npredicament %s has the following condition:\n%s\nbut %s is not of a comparable type\nif it was intended to contain a word, it will always contain a word\nsetting it to a number will not allow you to perform comparisons",
     "in %s\npredicament %s has the following condition:\n%s\nthis is trying to perform a comparison on %s,\nbut %s is neither a number nor a variable containing a number.\nyou are comparing apples and oranges, and i'm allergic.",
     # ^-- 25
-    "in %s:\npredicament %s has this line:\n%s\nan if statement must contain 'is' or '='",
-    "in %s:\npredicament %s has this line:\n%s\nchecking the status of a quest can only be done with keywords:\ninitial, known, started, done, failed\nor 'progress' followed by a number",
-    "in %s:\npredicament %s has this line:\n%s\nit appears to refer to a dictionary called '%s'\nbut i don't know what that is... :/",
-    "in %s:\npredicament %s has this line:\n%s\nnegating a comparison is pointless. just use the opposite.",
+    "in %s, predicament %s has this line:\n%s\nan if statement must contain 'is' or '='",
+    "in %s, predicament %s has this line:\n%s\nchecking the status of a quest can only be done with keywords:\ninitial, known, started, done, failed\nor 'progress' followed by a number",
+    "in %s, predicament %s has this line:\n%s\nit appears to refer to a dictionary called '%s'\nbut i don't know what that is... :/",
+    "in %s, predicament %s has this line:\n%s\nnegating a comparison is pointless. just use the opposite.",
     "in %s, predicament %s has this line:\n%s\nit appears to refer to a dictionary called %s\nbut that's not a valid dictionary.", #30
     "in %s, predicament %s has this line:\n%s\nsetting must be done using 'to' or '='.",
     "in %s, predicament %s has this line:\n%s\n%s is not sensible.\nquest entries must be set to keywords:\ninitial, known, started, done, failed\nor 'progress' followed by a number",
@@ -901,7 +876,8 @@ prederrors = (
     "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' is not an integer. you must use a whole number\nor a variables that is a whole number.",
     "in %s, predicament %s\nhas this invalid line:\n%s\n'%s' does not refer to a number. you can't %s it.",
     "",
-    "", #40
+    "in %s, predicament %s has this line:\n%s\nbut funtimes was still reading a map at the time\nso you probably screwed up major.", #40
+    # ^-- 40
     "in %s\npredicament %s is of 'goto' type\nbut it has no destination after '->'",
     "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet.",
     "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id",

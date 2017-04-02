@@ -1,48 +1,41 @@
 version = 1
 # dudes are tick lovers
 
+dude = girl
+    tile = ~/girl.png
+/dude
+
 dude = talker
-    name = Talker
-    tile = ~/talker.png
+    name = %girlname%
+    tile = ~/girl.png
     tick = 1
-        set progress = 42
-        text = variable changed to 42
+        text = Hi, I'm %girlname%! Press 'Wait' to see more of what I have to say.
+        set talkedtogirl = 1
     /tick
     tick = 2
-        add 1 to progress
-        text = added 1 to progress so it is %progress%
+        text = In Funtimes, events only happen when you make an action. The Wait button allows you to watch time passing without doing anything.
+        text = Now you can go left and explore the rest of this area.
     /tick
     tick = 3
-        subtract 1 from progress
-        text = subtracted 1 from progress so it is %progress%
+        text = All of my actions and text are defined in 'example.dude', which is a plaintext file.
+        text = Making your own game with Funtimes is... relatively simple!
     /tick
     tick = 4
-        text = this is tick #4
-        if progress is > 40
-            then
-            set progress = 300
-        /if
+        text = This is the 4th tick since you entered the room. I'm going to start counting from 300.
+        set progress = 300
+        set number = 299
     /tick
     # EVERY TICK
-    if progress is > 0
-        and
-    if progress is < 300
-        then
-        text = progress is %progress%
-    /if
-    if progress = 300
-        then
-        text = progress set to 300
-    /if
     if progress is > 299
         then
         add 1 to progress
-        text = I added 1 to progress so it's now %progress%
+        add 1 to number
+        text = %number%, %progress%...
     /if
 /dude
 
 dude = badguy
-    tile = ~/talker.png
+    tile = ~/probe.png
     if %badguyQ% = 0
         then
         text = A probe queries you for information.
@@ -84,16 +77,21 @@ dude = badguy
         set badguyQlabel = OK
         # once it becomes a string it can't become a num again
     /if
+
+    if badguyQ is < %finalQ%
+        then
+        action = %badguyQlabel% -> badguyQpred
+    /if
 /dude
 
 
 dude = follower
-    tile = ~/talker.png
+    tile = ~/follower.png
     if followed is 0
         then
         set followed = 1
         set follownum = 0
-    /if
+    /if 
     if followed is 1
         then
         add 1 to follownum
@@ -103,4 +101,29 @@ dude = follower
         then
         action = Punch that stupid follower! -> punchfollower
     /if
+/dude
+
+dude = key
+    tile = ~/key.png
+    text = It left behind a key! But where is the door?
+    set nomorekey=1
+/dude
+
+dude = axemurderer
+    tile = ~/axemurderer.png
+    tick = 2
+        if safety is not 1
+            then
+            set dead = 1
+            text = YOU'RE DEAD
+        /if
+    /tick
+/dude
+
+dude = axemurdererprop
+    tile = ~/axemurderer.png
+/dude
+
+dude = you
+    tile = ~/you.png
 /dude

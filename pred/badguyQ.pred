@@ -2,79 +2,60 @@ predicament = walkaround2N
     if badguyQ is not done
         then
         map =
-        #>>>>>>>>>>>>>>#
-        ^              ^
-        ^              ^
-        ^    C         ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        #>>>>>>  >>>>>>#
+        >>>>>>>>>>
+        ^        ^
+        ^        ^
+        ^  C     ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^    Y   ^
+        ^        ^
+        ^>  >>>>>>
         /map
 
-        set finalQ = 6
         dude = C -> badguy
-        action = %badguyQlabel% -> badguyQpred
     /if
     if badguyQ is done
         and
     if followed is 0
         then
         map =
-        #>>>>>>>>>>>>>>#
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        #>>>>>>  >>>>>>#
+        >>>>>>>>>>
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^    Y   ^
+        ^        ^
+        ^>  >>>>>>
         /map
     /if
     if followed is 1
         then
         map =
-        #>>>>>>>>>>>>>>#
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^   G          ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        ^              ^
-        #>>>>>>  >>>>>>#
+        >>>>>>>>>>
+        ^        ^
+        ^        ^
+        ^  G     ^
+        ^        ^
+        ^        ^
+        ^        ^
+        ^    Y   ^
+        ^        ^
+        ^>  >>>>>>
         /map
         dude = G -> follower
     /if
+    dude = Y -> you
     down = walkaround2
 /predicament
 
 predicament = badguyQpred
     # this pred redirects to another one
-    type = goto -> walkaround2N
+    type = goto -> %badguyQ-redirect%
     if badguyQ is not done
         then
         add 1 to badguyQ

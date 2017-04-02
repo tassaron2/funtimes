@@ -9,7 +9,7 @@ FUNTIMES
 
 ![Screenshot](/screenshot.png?raw=true)
 
-FUNTIMES is now an adventure game engine with a simple look and an easy syntax for building your own adventure. Raw Python can also be inserted within the easy syntax if desired for greater control. Included is an example game inspired by the classic silly batch files this engine is based on.
+FUNTIMES is now an adventure game engine with a simple look and an easy syntax for building your own adventure. Included is an example game inspired by the classic silly batch files this engine is based on. License and credit for the graphics is in the folder called src.
 
 Uses GTK+ 3 and Python 3.3+
 Currently only works on Linux, probably

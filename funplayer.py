@@ -11,13 +11,18 @@
 # under the next 'comment flag' is GTK stuff for the window
 # but this is designed to be flexible so another window could be used later
 #
+# TODO: Make window properly resizeable, by keeping mapwindow/controls static
+#       and scaling the textwindow to fill more space
+# TODO: ctrl+up enlarges text
+#
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # Licence would go here if anyone cared
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import funtimes
-import textwrap
+from textwrap import wrap
+from html import escape
 
 def play(predname='start'):
     global predicaments
@@ -48,6 +53,9 @@ class Predicament:
                 break
             else:
                 predname = self.pred.goto
+
+        if predname not in predicaments:
+            oldpred=None
 
         if oldpred:
             # take tick-number from the former predicament
@@ -94,7 +102,7 @@ class Predicament:
     def tryToTick(self,dudename,tick):
         if dudename:
             # tick the dude! ...off
-            Dude(dudename).tick(tick)
+            Dude(dudename, self.name).tick(tick)
         else:
             # it's an imposter :|
             self.hasFakeDudes=True
@@ -130,14 +138,14 @@ class Predicament:
         window.tick()
 
 class Dude:
-    def __init__(self, dudename):
+    def __init__(self, dudename, predname):
         self.dude = funtimes.Dude(dudename)
+        self.predname = predname
 
     def tick(self, tick):
         for eventType, event in self.dude.events(tick):
             Dude.doEvent(eventType, event, self.dude.nick)
 
-    @staticmethod
     def doEvent(eventType, event, nick):
         if eventType=='text':
             if nick:
@@ -155,14 +163,14 @@ class Dude:
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk, GdkPixbuf
 
 class getInput:
     exitcode = 0
     
     @staticmethod
     def kill(*args):
-        getInput.exitcode = 9
+        getInput.exitcode = 0
         getInput.main_quit()
         
     @staticmethod
@@ -175,7 +183,6 @@ class getInput:
         Gtk.main_quit()
         
 def main():
-    getInput.exitcode = 0
     Gtk.main()
     return getInput.exitcode
 
@@ -189,14 +196,14 @@ def goto(*args):
 
 class Funwindow(Gtk.Window):
     height = 320
-    width = 576
+    width = 648
     
     def __init__(self):
         # call mom's initializer first :)
-        Gtk.Window.__init__(self)
+        super().__init__()
         # decorate the window
         self.set_size_request(Funwindow.width, Funwindow.height)
-        self.set_border_width(6)
+        self.set_border_width(2)
         # fill it with empty boxes!!
         self.body = Body()
         self.add(self.body)
@@ -291,8 +298,17 @@ class Body(Gtk.Box):
 
 class ActionButtons(Gtk.Box):
     # area of the window where buttons go for actions
+    def __init__(self):
+        super().__init__()
+        self.set_border_width(4)
+    
     def makeButton(self, label, gotoPred):
-        button = Gtk.Button(label=label)
+        button = Gtk.Button()
+        buttonlabel = Gtk.Label()
+        if '<' in label or '>' in label:
+            label = escape(label)
+        buttonlabel.set_markup("<b>%s</b>" % label)
+        button.add(buttonlabel)
         button.set_size_request(64, 64)
         if gotoPred:
             button.connect('clicked', goto, gotoPred)
@@ -312,19 +328,19 @@ class TextBox(Gtk.Box):
     def __init__(self):
         super().__init__()
         self.set_orientation(Gtk.Orientation.VERTICAL)
-        self.set_border_width(6)
+        self.set_border_width(8)
         self._newRows=[]
 
     # text is printed here
     def add(self, item, dudename=None):
-        lines = textwrap.wrap(item,30)
+        if dudename:
+            item = '<b>%s</b>: %s' % (dudename, item)
+        lines = wrap(item,38)
         for i, line in enumerate(lines):
             if i==0:
-                if dudename:
-                    line = "<span font_desc='unifont' size='medium'>• <b>%s</b>: %s</span>"\
-                                  % (dudename, line)
-                else:
-                    line = "<span font_desc='unifont' size='medium'>• %s</span>" % line
+                line = "<span font_desc='unifont' size='large'>• %s</span>" % line
+            else:
+                line = "<span font_desc='unifont' size='large'>%s</span>" % line
             widget = Gtk.Label()
             widget.set_markup(line)
             widget.set_halign(Gtk.Align.START)
@@ -334,7 +350,7 @@ class TextBox(Gtk.Box):
 
     def newName(self, name):
         widget = Gtk.Label()
-        widget.set_markup('<span font_desc="sans" size="large" underline="low"><b>%s</b></span>' % name)
+        widget.set_markup('<span font_desc="sans" size="x-large" underline="low"><b>%s</b></span>' % name)
         widget.set_halign(Gtk.Align.START)
         self._newRows.append(widget)
         self.pack_start(widget, False, False, 1)
@@ -355,6 +371,7 @@ class TextBox(Gtk.Box):
 class MapBox(Gtk.Grid):
     def __init__(self):
         super().__init__()
+        self.set_border_width(4)
 
     # makes a grid of tiles using a list of map rows
     def create(self, tilemap, tileForChar):
@@ -368,7 +385,11 @@ class MapBox(Gtk.Grid):
             thisTile = Gtk.Label(char)
         else:
             thisTile = Gtk.Image()
-            thisTile.set_from_file(pathtofile)
+            if pathtofile=='':
+                thisTile.set_size_request(32,32)
+            else:
+                pixbuf = GdkPixbuf.Pixbuf().new_from_file_at_scale(pathtofile,32, 32, True)
+                thisTile.set_from_pixbuf(pixbuf)
         return thisTile
 
 class OKWindow(Gtk.Dialog):
