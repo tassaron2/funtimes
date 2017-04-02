@@ -55,7 +55,7 @@ predicament = walkaround2N
 
 predicament = badguyQpred
     # this pred redirects to another one
-    type = goto -> %badguyQ-redirect%
+    type = goto -> %predname%
     if badguyQ is not done
         then
         add 1 to badguyQ

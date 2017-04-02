@@ -93,6 +93,12 @@ class Parser:
                 except ValueError:
                     raise BadPredicamentError(18, self.filename, self.name, line)
 
+                if isPredicament and key.strip() in self.dudesymbols:
+                    # check for Dude symbols first because they're case sensitive
+                    self._parse_dudesymbol(key.strip(), value)
+                    continue
+                    
+                # everything else is case insensitive...
                 key = key.rstrip().lower()
                 if key == whatIAm:
                     # we're in a new predicament without closing the last one.
@@ -150,6 +156,9 @@ class Parser:
         elif busy:
             # should always hit error 4 before this, so it may be redundant
             raise BadPredicamentError(7, self.filename, self.name)
+
+        if isPredicament and not self.goto:
+            Predicament.variables['predname']=self.name
 
     def _parse_text(self,value,isEntry,readingTick):
         # remove only the first space if any
@@ -241,6 +250,7 @@ class Predicament(Parser):
         self._dudes = []
         # symbols that represent the parellel dude on a map
         self.dudesymbols = []
+        self.dudeLocations = {}
         # Funplayer may want to generate Dudes on-the-fly but
         # we need information about dudes so we must also pregen them
         self._pregenDudes = []
@@ -256,7 +266,7 @@ class Predicament(Parser):
         self.sound = None
         # MAP DATA
         # list of lines of tiles to draw for the map
-        self.predmap = None
+        self.predmap = []
         # name displayed over the map
         self.mapname = None
 
@@ -276,9 +286,9 @@ class Predicament(Parser):
             forbidden = ('name', 'sound','inputtype','filename','result')
             if thing in forbidden:
                 continue
-            functhing =getattr(newfunction, thing)
+            functhing = getattr(newfunction, thing)
+            realthing = getattr(self, thing)
             if type(functhing)==list:
-                realthing = getattr(self, thing)
                 if thing in ('arrowLabel','arrowGoto'):
                     for i, arrow in enumerate(functhing):
                         if arrow:
@@ -286,6 +296,16 @@ class Predicament(Parser):
                 else:
                     for line in functhing:
                         realthing.append(line)
+            if type(functhing)==dict:
+                for key, value in functhing.items():
+                    realthing[key] = value
+
+    def _parse_dudesymbol(self, key, value):
+        try:
+            x, y = value.split(',')
+        except ValueError:
+            raise BadPredicamentError(681)
+        self.dudeLocations[key] = (int(x.strip()), int(y.strip()))
 
     def _parse_type(self,value):
         # TODO: type = textinput -> result
@@ -365,7 +385,43 @@ class Predicament(Parser):
 
     @property
     def tilemap(self):
-        return self.predmap
+        predmap = self.predmap
+        if len(predmap)<1:
+            return predmap
+        for symbol in self.dudesymbols:
+            # add dudes to the map
+            if symbol in str(predmap):
+                # don't add dude if she's already on the map
+                continue
+            elif symbol in self.dudeLocations:
+                x, y = self.dudeLocations[symbol]
+                # find a free spot
+                while True:
+                    row = predmap[y]
+                    try:
+                        if row[x]==' ':
+                            break
+                        x+=1
+                    except IndexError:
+                        x=1
+                        y+=1
+                # found a suitable location for the dude!
+                predmap[y] = '%s%s%s' % \
+                            (row[:x], symbol, row[x+1:])
+            else:
+                while True:
+                    # picks a random index of a string across a random row
+                    randomRow = random.randint(1,len(predmap)-1)
+                    randomRowLine = predmap[randomRow]
+                    randomIndex = random.randint(1, len(randomRowLine)-1)
+                    # make sure it's a free spot
+                    if randomRowLine[randomIndex] != ' ':
+                        continue
+                    else:
+                        predmap[randomRow] = '%s%s%s' % \
+                            (randomRowLine[:randomIndex], symbol, randomRowLine[randomIndex+1:])
+                        break
+        return predmap
 
     def tileForChar(self, char):
         '''
@@ -516,8 +572,8 @@ def replaceVariables(text):
                             
 def replaceTilde(text):
     if text.startswith('~'):
-        mypath = os.path.dirname(os.path.realpath(__file__))
-        return '%s/%s%s' % (mypath, 'src', text[1:])
+        
+        return '%s/%s%s' % (MYPATH, 'src', text[1:])
     else:
         return text
 
@@ -892,7 +948,8 @@ prederrors = (
     "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
 )
 
-PREDDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pred')
+MYPATH = os.path.dirname(os.path.realpath(__file__))
+PREDDIR = os.path.join(MYPATH, 'pred')
 DUDEDIR = PREDDIR
 predicaments = findAllDefinitions(PREDDIR, 'pred')
 dudes = findAllDefinitions(DUDEDIR, 'dude')

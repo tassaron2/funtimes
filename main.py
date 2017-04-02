@@ -49,16 +49,15 @@ def forExitcode(predname):
     varsForPredname = {
     'entry' : {
         'finalQ' : 6,
-        'badguyQ-redirect' : 'walkaround2N',
         'badguyQ' : 0,
         'badguyQlabel' : 'Respond to Probe',
         'heardthatnoise' : 0,
         'followed' : 0,
+        'badfollow' : 0,
         },
     'kill' : {},
     'somewhereelse' : {
         'finalQ' : 6,
-        'badguyQ-redirect' : 'somewhereelse2',
         'badguyQ' : 0,
         'badguyQlabel' : 'Respond to Probe',
         'nomorekey' : 0,

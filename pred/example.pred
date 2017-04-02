@@ -17,15 +17,18 @@ predicament = entry
     ^        ^
     ^        ^
     ^        ^
-    ^     A  ^
+    ^        ^
     ^        ^
              ^
-         Y   ^
+             ^
     ^        ^
     ^>>>>>>>>>
     /map
     dude = Y -> you
     dude = A -> girl
+    # dudes can be placed at an x,y position on the map
+    A = 6,4
+    Y = 4,6
     
     name = Welcome to FUNTIMES!
     text = %entrymsg%
@@ -52,80 +55,61 @@ predicament = basicstuff
 
 predicament = walkaround1
     name = The First Room
-    if followed is 0
-        then
-        map =
-        >>>>>>>>>>
-        ^        ^
-        ^        ^
-        ^        ^
-        ^     A  ^
-        ^        ^
-                 ^
-             Y   ^
-        ^        ^
-        ^>>>>>>>>>
-        /map
-    /if
+    map =
+    >>>>>>>>>>
+    ^        ^
+    ^        ^
+    ^        ^
+    ^        ^
+    ^        ^
+             ^
+             ^
+    ^        ^
+    ^>>>>>>>>>
+    /map
     if followed is 1
         then
-        map =
-        >>>>>>>>>>
-        ^        ^
-        ^ G      ^
-        ^        ^
-        ^     A  ^
-        ^        ^
-                 ^
-            Y    ^
-        ^        ^
-        ^>>>>>>>>>
-        /map
         dude = G -> follower
     /if
     entry = A non-descript room with a dude in it.
     dude = A -> talker
     dude = Y -> you
+    A = 6,4
+    Y = 4,6
     if talkedtogirl is 1
         then
         left = walkaround2
     /if
+    function = badfollow
 /predicament
 
 predicament = walkaround2
     # to draw this map correctly (with floor tiles)
     # had to disable 'strip trailing spaces'
     name = Hub Room
+    map =
+    >>  >>>>>>
+    ^        ^
+    ^        ^
+    ^        ^
+    ^        ^
+    ^  Y     ^
+    ^         
+    ^         
+    ^        ^
+    ^>  >>>>>>
+    /map
+    dude = Y -> you
+    Y = 400,400
+    #  ^-- this line gets ignored because
+    # the position of this dude is defined on the map
+    
     if followed is 0
         then
-        map =
-        >>  >>>>>>
-        ^        ^
-        ^        ^
-        ^        ^
-        ^        ^
-        ^  Y     ^
-        ^         
-        ^         
-        ^        ^
-        ^>  >>>>>>
-        /map
         text = More options for movement, but where do they go?
     /if
     if followed is 1
         then
-        map =
-        >>  >>>>>>
-        ^        ^
-        ^        ^
-        ^        ^
-        ^     G  ^
-        ^        ^
-        ^  Y      
-        ^         
-        ^        ^
-        ^>  >>>>>>
-        /map
         dude = G -> follower
     /if
     
@@ -144,7 +128,7 @@ predicament = walkaround2
         /if
         down = southbranch-entry
     /if
-    dude = Y -> you
+    function = badfollow
 /predicament
 
 predicament = walkaround2S
@@ -152,9 +136,9 @@ predicament = walkaround2S
     map =
         >>  >>>>>>
         ^        ^
+        ^    Y   ^
         ^        ^
-        ^   Y    ^
-        ^        ^
+        ^   >>>>>^
         ^        ^
         ^        ^
         ^        ^
@@ -163,15 +147,19 @@ predicament = walkaround2S
     /map
 
     dude = Y -> you
-    text = Nothing interesting here...
-    if badguyQ is not 0
+    if badfollow is 0
+        then
+        entry = Nothing interesting here...
+    /if
+    if badguyQ is 1
         then
         text = At least that freaking probe isn't here!
     /if
+    function = badfollow
 /predicament
 
-# If you uncomment this predicament, it will be
-# inserted on every screen as a 'Quit' button
+# If you comment out this predicament, it will
+# not be inserted on every screen as a 'Quit' button
 predicament = quit
     quit
 /predicament
@@ -201,5 +189,13 @@ predicament = generateGirlName
     if progress is > 80
         then
         set girlname = Laurie
+    /if
+/predicament
+
+predicament = badfollow
+    if badfollow is 1
+        then
+        dude = J -> badguy
+        J = 4, 4
     /if
 /predicament
