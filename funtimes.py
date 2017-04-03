@@ -15,6 +15,9 @@
 # defines objects used by funplayer.py to play a game
 #
 # TODO: different fatality levels for BadPredicamentError & option to ignore minor
+# TODO: fix functions not applying their mapnames for some weird reason
+# TODO: merge all dude-event-queue code together
+# TODO: invalid variable deletes entire line, not just the variable
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -153,8 +156,7 @@ class Parser:
                     busy = False
                     break
                 if line.strip() == 'quit':
-                    # tell funplayer to quit the game
-                    self.inputtype = 'quit'
+                    self._parse_quit(readingTick)
                     continue
                 if isDude and line.find("/tick") == 0:
                     readingTick=0
@@ -180,9 +182,8 @@ class Parser:
                     # we're in a new predicament without closing the last one.
                     # the pred file must be invalid.
                     raise BadPredicamentError(4, self.filename, whatIAm, self.name, whatIAm)
-                elif key.startswith('exit') and isPredicament:
-                    # tell funplayer to close the window
-                    self.inputtype = 'exit%s' % value.strip()
+                elif key == 'exit':
+                    self._parse_exit(value.strip(), readingTick)
                     continue
                 elif key == 'tick' and isDude:
                     try:
@@ -278,6 +279,30 @@ class Parser:
         else:
             self.sound.append(value)
 
+    def _parse_quit(self, readingTick):
+        # tell funplayer to quit the game
+        if readingTick==-1:
+            self.inputtype = 'quit'
+        elif readingTick>0:
+            # this event is for specific tick
+            self._events.append(('quit',''))
+            self.eventNums.append(readingTick)
+        elif readingTick==0:
+            # this event is for every tick
+            self.everytick.append(('quit',''))
+
+    def _parse_exit(self, value, readingTick):
+        # tell funplayer to close the window
+        if readingTick==-1:
+            self.inputtype = 'exit%s' % value
+        elif readingTick>0:
+            # this event is for specific tick
+            self._events.append(('exit',value))
+            self.eventNums.append(readingTick)
+        elif readingTick==0:
+            # this event is for every tick
+            self.everytick.append(('exit',value))
+
 class Predicament(Parser):
     """
     when creating a Predicament, pass in a string holding the name.
@@ -367,9 +392,11 @@ class Predicament(Parser):
                 else:
                     for line in functhing:
                         realthing.append(line)
-            if type(functhing)==dict:
+            elif type(functhing)==dict:
                 for key, value in functhing.items():
                     realthing[key] = value
+            elif type(functhing)==str and thing=='mapname':
+                realthing = functhing
 
     def _parse_dudesymbol(self, key, value):
         try:
@@ -699,6 +726,7 @@ def doSet(filename, predname, line, readingTick=-1,self=None):
     # store it in the Predicament class dictionary right away
     # OR create a Dude event for it if this is a Dude
     # change value to a real number or something else if necessary
+    key = replaceVariables(key)
     newvalue = replaceVariables(value)
     if value == 'random':
         newvalue = random.randint(1,100)
@@ -860,7 +888,6 @@ def doIf(fp, name, line, readingTick=None):
     # end of wtf
 
     followup = getNonBlankLine(fp).lower() # get 'then', 'and', 'or'
-
     if followup.startswith("then not"):
         # don't use this, it breaks if more than one statement is processed
         # for the simplest statements, it's okay.

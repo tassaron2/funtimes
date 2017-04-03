@@ -1,0 +1,18 @@
+version = 1
+dude = you
+    tile = ~/you.png
+    if playerHP is < 5
+        then
+        text = WARNING: AUTO LOGOUT TRIGGERED DUE TO LOW HEALTH POINTS!
+        text = YOU ARE ALMOST DEAD.
+        set playerdead to 1
+        # this line actually sets the variable currentquest is set to
+        # because % is expanded before set is executed
+        # therefore this 'ends' the current quest, i.e. job
+        set %currentquest% = 900
+    /if
+    if playerdead is 1
+        then
+        quit
+    /if
+/dude

@@ -4,6 +4,7 @@ predicament = mainmenu
 
               MAIN MENU
     Name       : %playerName%
+    Dough      : $%playerMoney%
     Health Pts : %playerHP%
     Skill Pts  : %playerSP%
     /map
@@ -25,12 +26,13 @@ predicament = jobsmenu
     action = Back -> mainmenu
     function = generateRandomValues
     set numJobs = 0
-    if supereasyQuest1 is < 1
+    if supereasyQuest1 is 0
         and
     if playerSP is < 3
         thender
         add 1 to numJobs
         text = %girlname% Needs Help
+        text =
         action = View %girlname%'s Job -> viewsupereasyQuest1
     /if
     if supereasyQuest2 is < 1
@@ -39,6 +41,7 @@ predicament = jobsmenu
         thender
         add 1 to numJobs
         text = %jerkname% Needs Help
+        text =
         action = View %jerkname%'s Job -> viewsupereasyQuest2
     /if
     if numJobs is < 1
@@ -54,6 +57,7 @@ predicament = quit
 /predicament
 
 predicament = jobview
+    name  = Available Jobs
     action = Back -> jobsmenu
     action = Accept -> accept%predname%
     text = Do you want to accept this job?

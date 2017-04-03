@@ -1,2 +1,37 @@
+version = 1
 predicament = supereasyQuest1entry
+    function = supereasyProbe
+    sound = ~/entry.wav
+    function = endroomleft
+    entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
+    left = seQ1-hall1
+/predicament
+
+predicament = seQ1-hall1
+    function = supereasyProbe
+    function = horihallway
+    right = supereasyQuest1entry
+    left = seQ1-tjunc1
+/predicament
+
+predicament = seQ1-tjunc1
+    function = supereasyProbe
+    function = tjunctionup
+    entry = %playerName%: Ah crap.
+    dude = P -> supereasyProbe
+    right = seQ1-hall1
+    left = seQ1-endright1
+    up = seQ1-vend1
+/predicament
+
+predicament = seQ1-endright1
+    function = supereasyProbe
+    function = endroomright
+    right = seQ1-tjunc1
+/predicament
+
+predicament = seQ1-vend1
+    function = supereasyProbe
+    function = endroomdown
+    down = seQ1-tjunc1
 /predicament

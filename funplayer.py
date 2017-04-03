@@ -171,6 +171,11 @@ class Dude:
         elif eventType=='action':
             label, goto = event.split('=')
             window.actions.addToEnd(label.strip(), goto.strip())
+        elif eventType=='quit':
+            getInput.kill()
+        elif eventType=='exit':
+            getInput.closewin(event)
+            
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #

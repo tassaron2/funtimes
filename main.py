@@ -18,16 +18,21 @@ import funplayer
 #CONFIGPATH = "%s/.config/file.conf" % os.getenv("HOME")
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
-playerData = {
-    'playerName'      : 'Tarasius',
-    'playerHP'        : 100,
-    'playerSP'        : 0,
+startStats = {
+    'playerMoney'     : 20,
     'supereasyQuest1' : 0,
     'supereasyQuest2' : 0,
 }
 
+playerData = {
+    'playerName'      : 'Tarasius',
+    'playerHP'        : 100,
+    'playerdead'      : 0,
+    'playerSP'        : 0,
+}
+
 def main(startat='mainmenu'):
-    funplayer.set_variables(playerData)
+    funplayer.set_variables(startStats)
     funplayer.set_variables(forExitcode(startat))
     funplayer.set_variables({'seenIntro':0})
     funplayer.set_mode('MENU')
@@ -55,13 +60,20 @@ def main(startat='mainmenu'):
 
 def forExitcode(predname):
     varsForPredname = {
-    'mainmenu'          :   {},
-    'supereasyQuest1entry'   :   {
-            'test'      : 'hey',
+                'mainmenu' :  playerData,
+    'supereasyQuest1entry' :   {
+            'currentquest' : 'supereasyQuest1',
+            'probeAngered' : 0,
+            'probeTick'    : 0,
+           'probeProgress' : 0,
+          'probeFollowing' : 0,
         },
     }
-
-    return varsForPredname[predname]
+    try:
+        return varsForPredname[predname]
+    except KeyError:
+        print('oopsie')
+        quit()
 
 if __name__ == '__main__':
     main()

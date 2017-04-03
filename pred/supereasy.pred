@@ -1,3 +1,4 @@
+version = 1
 predicament = viewsupereasyQuest1
     map=
     %playerName%,
@@ -39,4 +40,13 @@ predicament = acceptviewsupereasyQuest1
 /predicament
 predicament = acceptviewsupereasyQuest2
     exit = supereasyQuest2entry
+/predicament
+
+predicament = supereasyProbe
+    if %predname% is not %probeOrigin%
+        and
+    if %probeFollowing% is 1
+        then
+        dude = P -> supereasyProbe
+    /if
 /predicament
