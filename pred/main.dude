@@ -11,6 +11,13 @@ dude = you
         # therefore this 'ends' the current quest, i.e. job
         set %currentquest% = 900
     /if
+
+    if doAttackMessageProbe is 1
+        then
+        text = You attacked the probe! It dropped to %probeHP%HP
+        set doAttackMessageProbe = 0
+    /if
+    
     if playerdead is 1
         then
         quit

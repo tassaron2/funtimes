@@ -34,19 +34,46 @@ predicament = viewsupereasyQuest2
     function = jobview
 /predicament
 
-
 predicament = acceptviewsupereasyQuest1
+    set supereasyQuest1 to 1
     exit = supereasyQuest1entry
 /predicament
 predicament = acceptviewsupereasyQuest2
+    set supereasyQuest2 to 1
     exit = supereasyQuest2entry
 /predicament
 
 predicament = supereasyProbe
-    if %predname% is not %probeOrigin%
+    if probeHP is > 0
         and
-    if %probeFollowing% is 1
+    if predname is not %probeOrigin%
+        and
+    if probeFollowing is 1
         then
         dude = P -> supereasyProbe
     /if
+/predicament
+
+predicament = supereasyProberesponse
+    if probeAngered is 0
+        and
+    if playerSP is < 1
+        then the probe is not fooled!
+        set probeAngered to 1
+        set probeProgress to 3
+    /if
+    if probeAngered is 0
+        and
+    if playerSP is > 0
+        then probe is a sucker
+        set probeFriendly to 1
+    /if
+
+    if probeAngered is 1
+        then attack!
+        subtract %playerAttackDmg% from probeHP
+        set doAttackMessageProbe to 1
+    /if
+    
+    type = goto -> %predname%
 /predicament

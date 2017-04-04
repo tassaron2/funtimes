@@ -22,6 +22,8 @@ startStats = {
     'playerMoney'     : 20,
     'supereasyQuest1' : 0,
     'supereasyQuest2' : 0,
+    'currentquest'    : '',
+    'doAttackMessageProbe' : 0,
 }
 
 playerData = {
@@ -29,6 +31,7 @@ playerData = {
     'playerHP'        : 100,
     'playerdead'      : 0,
     'playerSP'        : 0,
+    'playerAttackDmg' : 6,
 }
 
 def main(startat='mainmenu'):
@@ -62,11 +65,12 @@ def forExitcode(predname):
     varsForPredname = {
                 'mainmenu' :  playerData,
     'supereasyQuest1entry' :   {
-            'currentquest' : 'supereasyQuest1',
-            'probeAngered' : 0,
-            'probeTick'    : 0,
-           'probeProgress' : 0,
-          'probeFollowing' : 0,
+                'currentquest' : 'supereasyQuest1',
+                'probeAngered' : 0,
+                'probeTick'    : 0,
+               'probeProgress' : 0,
+              'probeFollowing' : 0,
+              'probeHP'        : 50,
         },
     }
     try:

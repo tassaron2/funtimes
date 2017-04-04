@@ -2,20 +2,29 @@ version = 1
 dude = supereasyProbe
     tile = ~/probe.png
     tick = 1
+        # this var is for tracking the FIRST first tick :p
         set probeTick = 1
         text = A basic security probe is here.
     /tick
 
     if probeTick = 0
-        then
+        then save the probe's first room so it
+        # doesn't have its dude added there by function
         set probeOrigin = %predname%
+    /if
+
+    if probeHP is < 1
+        then
+        text = The basic security probe has been deactivated.
     /if
 
     if probeProgress is 0
         then
         set probeProgress = 1
     /if
-    
+
+    if probeHP is > 0
+        and
     if probeAngered is 0
         and
     if probeProgress is > 0
@@ -23,17 +32,24 @@ dude = supereasyProbe
     if probeProgress is < 3
         then
         text = The probe requests identification.
+        action = Misidentify self to probe -> supereasyProberesponse
         add 1 to probeProgress
         set probeFollowing to 1
     /if
-    if probeProgress is > 2
+    if probeProgress = 3
         then
+        text = The probe has decided you are hostile!
         set probeAngered = 1
+        set probeProgress = 10
+        action = Attack the probe! -> supereasyProberesponse
     /if
-    
+
+    if probeHP is > 1
+        and
     if probeAngered is 1
         then
-        subtract 6 from playerHP
+        subtract 8 from playerHP
+        action = Attack the probe! -> supereasyProberesponse
         text = The probe attacks you! You're down to %playerHP%HP!
     /if
 /dude
