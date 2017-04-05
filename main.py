@@ -54,7 +54,7 @@ def main(startat='mainmenu'):
             newpred = output
         funplayer.set_variables(forExitcode(newpred))
         funplayer.set_variables(playerData)
-        if newpred=='mainmenu':
+        if newpred=='mainmenu' or newpred.endswith('completescreen'):
             funplayer.set_mode('MENU')
         else:
             funplayer.set_mode()
@@ -62,22 +62,29 @@ def main(startat='mainmenu'):
         funplayer.play(newpred)
 
 def forExitcode(predname):
-    varsForPredname = {
-                'mainmenu' :  playerData,
-    'supereasyQuest1entry' :   {
-                'currentquest' : 'supereasyQuest1',
+    def makeQuestVars(questname):
+        return { questname     : 0,
                 'probeAngered' : 0,
                 'probeTick'    : 0,
                'probeProgress' : 0,
               'probeFollowing' : 0,
               'probeHP'        : 50,
-        },
+              'editedFile'     : 0,
+              'downloadedFile' : 0,
+              'viewingFiles'   : 0,
+              'viewingEmails'  : 0,
+              'deletedEmail'   : 0,
+        }
+        
+    varsForPredname = {
+                'mainmenu' :  playerData,
+    'supereasyQuest1entry' :  makeQuestVars('supereasyQuest1'),
+    'supereasyQuest2entry' :  makeQuestVars('supereasyQuest2'),
     }
     try:
         return varsForPredname[predname]
     except KeyError:
-        print('oopsie')
-        quit()
+        return {}
 
 if __name__ == '__main__':
     main()

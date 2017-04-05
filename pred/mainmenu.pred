@@ -25,7 +25,7 @@ predicament = jobsmenu
     name = Available Jobs
     action = Back -> mainmenu
     function = generateRandomValues
-    entry = You can quit a job and restart from the beginning at any time using the Log Out button... but if you die while on a job, you won't be able to try again for a while. So be careful!
+    entry = You can quit a job and restart from the beginning at any time using the Disconnect button... but if you die while on a job, you won't be able to try again for a while. So be careful!
     set numJobs = 0
     if supereasyQuest1 is < 2
         and
@@ -33,7 +33,6 @@ predicament = jobsmenu
         thender
         add 1 to numJobs
         text = %girlname% Needs Help
-        text =
         action = View %girlname%'s Job -> viewsupereasyQuest1
     /if
     if supereasyQuest2 is < 2

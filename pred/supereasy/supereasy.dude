@@ -36,13 +36,6 @@ dude = supereasyProbe
         add 1 to probeProgress
         set probeFollowing to 1
     /if
-    if probeProgress = 3
-        then
-        text = The probe has decided you are hostile!
-        set probeAngered = 1
-        set probeProgress = 10
-        action = Attack the probe! -> supereasyProberesponse
-    /if
 
     if probeHP is > 1
         and
@@ -52,4 +45,22 @@ dude = supereasyProbe
         action = Attack the probe! -> supereasyProberesponse
         text = The probe attacks you! You're down to %playerHP%HP!
     /if
+    if probeProgress = 3
+        then
+        text = The probe has decided you are hostile!
+        set probeAngered = 1
+        set probeProgress = 10
+        action = Attack the probe! -> supereasyProberesponse
+    /if
+/dude
+
+
+dude = supereasyfileserver
+    name = Fileserver
+    tile = ~/drawer.png
+    tick=1
+        text = Hello Professor! Here are your files! :)
+        set saidmessage=1
+    /tick
+
 /dude

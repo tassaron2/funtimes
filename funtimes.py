@@ -36,15 +36,24 @@ class BadPredicamentError(Exception):
         quit()
 
 class Parser:
+    '''Parent for anything that parses a file to define itself.
+    Holds parsing methods used by both dudes and predicaments.'''
+    
     def _parse_everything(self, filetype, mydir):
         '''
         Central hub from which all pred and dude file parsing is done.
         '''
+
+        
+        
         def init_trackers(isPredicament,isDude):
-            if isPredicament:
+            # this list stores functions to call when parsing is done
+            self._on_parser_finish = []
+            if isPredicament and not self.isFunction:
                 # reset if tracker variables
                 Parser.readingIfLevel = 0
                 Parser.tempIfLevel = 0
+            if isPredicament:
                 readingTick = -1
                 readingTickPassThru = None
             elif isDude:
@@ -85,11 +94,16 @@ class Parser:
             
         def cleanUp(isPredicament, busy):
             # happens at the end of file-parsing
-            if Parser.readingIfLevel and isPredicament:
+            if Parser.readingIfLevel and isPredicament and not self.isFunction:
                 raise BadPredicamentError(13, self.filename, self.name)
             elif busy:
                 # should always hit error 4 before this, so it may be redundant
                 raise BadPredicamentError(7, self.filename, self.name)
+            # run any functions 
+            for func in self._on_parser_finish:
+                func()
+            if self.isFunction:
+                self._on_parser_finish = []
 
         def tryToOpen(dir_, filetype, name):
             try:
@@ -185,54 +199,55 @@ class Parser:
                     
                 # everything else is case insensitive...
                 key = key.rstrip().lower()
+                value = value.strip()
                 if key == whatIAm:
                     # we're in a new predicament without closing the last one.
                     # the pred file must be invalid.
                     raise BadPredicamentError(4, self.filename, whatIAm, self.name, whatIAm)
                 elif key == 'exit':
-                    self._parse_exit(value.strip(), readingTick)
+                    self._parse_exit(value, readingTick)
                     continue
                 elif key == 'tick' and isDude:
                     try:
-                        readingTick = int(value.strip())
+                        readingTick = int(value)
                         continue
                     except TypeError:
-                        raise BadPredicamentError(43, filename, self.name, value.strip())
+                        raise BadPredicamentError(43, filename, self.name, value)
                 elif key == 'text':
-                    self._parse_text(value.strip(),False,readingTick)
+                    self._parse_text(value,False,readingTick)
                     continue
                 elif key == 'tile' and isDude:
-                    self.tile = value.strip()
+                    self.tile = value
                     continue
                 elif key == 'entry' and isPredicament:
-                    self._parse_text(value.strip(),True,readingTick)
+                    self._parse_text(value,True,readingTick)
                     continue
                 elif key == 'action':
                     self._parse_action(value,line,readingTick)
                     continue
                 elif key == 'function' and isPredicament:
-                    self._parse_function(value.strip())
+                    self._parse_function(value)
                     continue
                 elif key == 'sound':
-                    self._parse_sound(value.strip())
+                    self._parse_sound(value)
                     continue
                 elif key == 'type' and isPredicament:
-                    self._parse_type(value.strip(),oldpredname)
+                    self._parse_type(value,oldpredname)
                     continue
                 elif key == 'map' and isPredicament:
-                    self._parse_map(fp, line)
+                    self._parse_map(fp, line, value)
                     continue
                 elif key == 'name':
-                    self._parse_name(value.strip(), readingTick)
+                    self._parse_name(value, readingTick)
                     continue
                 elif key == 'dude' and isPredicament:
-                    self._parse_dude(value.strip())
+                    self._parse_dude(value)
                     continue
                 elif key in ('up', 'down', 'left', 'right') and isPredicament:
-                    self._parse_arrow(key, value.strip())
+                    self._parse_arrow(key, value)
                     continue
                 else:
-                    raise BadPredicamentError(14, whatIAm, self.filename, self.name, key.strip())
+                    raise BadPredicamentError(14, whatIAm, self.filename, self.name, key)
 
         cleanUp(isPredicament, busy)
 
@@ -258,10 +273,12 @@ class Parser:
             action, goto = value.split('->')
         except ValueError:
             raise BadPredicamentError(23, self.name, line)
+        action = action.strip()
+        goto = goto.strip()
         if readingTick==-1:
             # predicament
             self.actionLabel.append(action)
-            self.actionGoto.append(goto.strip())
+            self.actionGoto.append(goto)
         elif readingTick>-1:
             # dude
             self.addEvent(readingTick, 'action', '%s=%s' % (action, goto))
@@ -437,27 +454,75 @@ class Predicament(Parser):
         else:
             raise BadPredicamentError(44, self.filename, self.name)
 
-    def _parse_map(self, fp, line):
-        # fp and line are things we need to iterate through the pred file
-        # name is something we only need to raise errors, to help debug
-        maplist = []
-        while line:
-            # move down 1 line
-            line = fp.readline()
-            # stop reading if we encounter an end-block
-            if line.find('/map') != -1:
-                break
-            elif line.find('/predicament') != -1:
-                raise BadPredicamentError(40, self.filename, self.name, line.strip())
-            else:
-                # if the map isn't done yet, add this line onto the map
-                # strip out the terminating newline character on the right
-                maplist.append(line[:-1])
+    def _parse_map(self, fp, line, value):
+        def readMap(fp, line):
+            # fp and line are things we need to iterate through the pred file
+            maplist = []
+            while line:
+                # move down 1 line
+                line = fp.readline()
+                # stop reading if we encounter an end-block
+                if line.find('/map') != -1:
+                    break
+                elif line.find('/predicament') != -1:
+                    raise BadPredicamentError(40, self.filename, self.name, line.strip())
+                else:
+                    # if the map isn't done yet, add this line onto the map
+                    # strip out the terminating newline character on the right
+                    maplist.append(line[:-1])
 
-        # deduce how much indentation to remove from the left
-        longest = max(maplist)
-        indentSize = len(longest) - len(longest.lstrip())
-        self.predmap = [line[indentSize:] for line in maplist]
+            # deduce how much indentation to remove from the left
+            longest = max(maplist)
+            indentSize = len(longest) - len(longest.lstrip())
+            self.predmap = [line[indentSize:] for line in maplist]
+            
+        def doAutoMap():
+            # automatically create a 9x9 map with doors
+            hasUp, hasDown, hasLeft, hasRight = False, False, False, False
+            for i, arrow in enumerate(self.arrowGoto):
+                if arrow:
+                    if i==0:
+                        hasUp = True
+                    elif i==1:
+                        hasDown = True
+                    elif i==2:
+                        hasLeft = True
+                    elif i==3:
+                        hasRight = True
+            maplist = []
+            if hasUp:
+                maplist.append('>>>   >>>')
+            else:
+                maplist.append('>>>>>>>>>')
+            maplist.append('>       >')
+            maplist.append('>       >')
+            if hasLeft and not hasRight:
+                centerline = '        >'
+            elif hasRight and not hasLeft:
+                centerline = '>        '
+            elif hasLeft and hasRight:
+                centerline = '         '
+            else:
+                centerline = '>       >'
+            for i in range(3):
+                maplist.append(centerline)
+            maplist.append('>       >')
+            maplist.append('>       >')
+            if hasDown:
+                maplist.append('>>>   >>>')
+            else:
+                maplist.append('>>>>>>>>>')
+            self.predmap = maplist
+        
+        # read lines until /map if there is no value after 'map='
+        if not value:
+            readMap(fp, line)
+        elif value=='auto':
+            # put AutoMap function in this queue...
+            self._on_parser_finish.append(doAutoMap)
+            # so it can use pred data parsed after this line
+        else:
+            raise BadPredicamentError(45, self.filename, self.name, line)
 
     # this isn't used anywhere, but handy for debugging
     def __str__(self):
@@ -541,7 +606,7 @@ class Predicament(Parser):
         # iterate through our dudes
         for dudeObj in chain(self._pregenDudes, self.fakeDudes):
             if tickNum=='everytick':
-                if len(dudeObj.everytick)==0:
+                if not dudeObj.everytick:
                     continue
             elif tickNum not in dudeObj.ticks:
                 continue
@@ -1011,6 +1076,7 @@ prederrors = (
     "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet.",
     "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id",
     "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
+    "in %s, %s has an invalid map line:\n%s",
 )
 
 MYPATH = os.path.dirname(os.path.realpath(__file__))

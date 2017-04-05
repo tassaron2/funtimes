@@ -1,2 +1,52 @@
+version = 1
 predicament = supereasyQuest2entry
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    left = seQ2l
+/predicament
+predicament = seQ2l
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    right = supereasyQuest2entry
+    left = seQ2ll
+    down = seQ2ld
+/predicament
+predicament = seQ2ll
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    left = seQ2lll
+    right = seQ2l
+/predicament
+predicament = seQ2ld
+    map = auto
+    dude = Y -> you
+    if probeHP is > 0
+        then
+        dude = P -> supereasyProbe
+    /if
+    function = supereasyProbe
+    up = seQ2l
+    down = seQ2ldd
+/predicament
+predicament = seQ2ldd
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    up = seQ2ld
+    left = seQ2lddl
+/predicament
+predicament = seQ2lddl
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    right = seQ2ldd
+/predicament
+predicament = seQ2lll
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    right  = seQ2ll
 /predicament

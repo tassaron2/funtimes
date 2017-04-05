@@ -52,9 +52,22 @@ predicament = supereasyProbe
         then
         dude = P -> supereasyProbe
     /if
+    if editedFile is 1
+        then
+        action = Complete mission -> completesupereasyQuest1
+    /if
+    if downloadedFile is 1
+        then
+        action = Complete mission -> completesupereasyQuest2
+    /if
 /predicament
 
 predicament = supereasyProberesponse
+    if probeAngered is 1
+        then attack!
+        subtract %playerAttackDmg% from probeHP
+        set doAttackMessageProbe to 1
+    /if
     if probeAngered is 0
         and
     if playerSP is < 1
@@ -68,12 +81,24 @@ predicament = supereasyProberesponse
         then probe is a sucker
         set probeFriendly to 1
     /if
-
-    if probeAngered is 1
-        then attack!
-        subtract %playerAttackDmg% from probeHP
-        set doAttackMessageProbe to 1
-    /if
     
     type = goto -> %predname%
+/predicament
+
+predicament = viewsupereasyfileserver
+    type=goto->seQ1-vend1
+    set viewingFiles to 1
+/predicament
+
+predicament = supereasyfileserverfiles
+    text = Viewing files...
+    text = [junk]
+    text = [junk]
+    text = [TARGET] Harsen %girlname% Final.rtf
+    text = [junk]
+/predicament
+
+predicament = editsupereasyfileserver
+    type = goto -> %predname%
+    set editedFile to 1
 /predicament

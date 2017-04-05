@@ -14,7 +14,6 @@
 # TODO: Make window properly resizeable, by keeping mapwindow/controls static
 #       and scaling the textwindow to fill more space
 # TODO: ctrl+up enlarges text
-# TODO: Mode that puts buttons on the right instead of map, for main menu
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -66,6 +65,8 @@ class Predicament:
                 break
             else:
                 predname = self.pred.goto
+                if predname in predicaments:
+                    oldpred=predicaments[predname]
 
         if predname not in predicaments:
             oldpred=None
@@ -265,7 +266,7 @@ GtkButton:active {
 class Funwindow(Gtk.Window):
     mode = 'MAP'
     modeVarDicts = {
-        'MAP'  : { 'quit'          : 'Log Out',
+        'MAP'  : { 'quit'          : 'Disconnect',
                    'wait'          : 'Wait',
                    'arrowsEnabled' : True,
                    'emptyMapName'  : '                ',
