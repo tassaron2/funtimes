@@ -14,6 +14,7 @@
 # TODO: Make window properly resizeable, by keeping mapwindow/controls static
 #       and scaling the textwindow to fill more space
 # TODO: ctrl+up enlarges text
+# TODO: sum the button label lengths as we go, so the buttons can linebreak if needed
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #

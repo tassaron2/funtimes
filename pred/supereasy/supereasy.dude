@@ -50,7 +50,6 @@ dude = supereasyProbe
         text = The probe has decided you are hostile!
         set probeAngered = 1
         set probeProgress = 10
-        action = Attack the probe! -> supereasyProberesponse
     /if
 /dude
 

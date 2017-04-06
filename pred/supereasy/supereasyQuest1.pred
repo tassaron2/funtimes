@@ -41,6 +41,11 @@ predicament = seQ1-vend1
     dude = F -> supereasyfileserver
     F = 4,3
     function = supereasyProbe
+    if saidmessage is 1
+        then
+        set saidmessage to 2
+        text = %playerName%: I can't believe this has no security at all.
+    /if
     entry = %playerName%: Here it is...
     action = View Files -> viewsupereasyfileserver
     if viewingFiles is 1
@@ -72,5 +77,6 @@ predicament = supereasyQuest1completescreen
     text = As compensation you received $%reward%.
     add %reward% to playerMoney
     set supereasyQuest1 to 10
+    add 1 to playerDay
     action = OK -> quit
 /predicament

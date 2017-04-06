@@ -5,6 +5,8 @@
 # last modified 2017/04/02
 # created 2017/03/23 by tassaron
 #
+# Trying doing file viewing as a separate menu
+#
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # Licence would go here if anyone cared
@@ -19,6 +21,7 @@ import funplayer
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
 startStats = {
+    'playerDay'       : 1,
     'playerMoney'     : 20,
     'supereasyQuest1' : 0,
     'supereasyQuest2' : 0,
@@ -54,11 +57,11 @@ def main(startat='mainmenu'):
             newpred = output
         funplayer.set_variables(forExitcode(newpred))
         funplayer.set_variables(playerData)
-        if newpred=='mainmenu' or newpred.endswith('completescreen'):
+        if newpred.endswith('menu') or newpred.endswith('completescreen'):
             funplayer.set_mode('MENU')
         else:
             funplayer.set_mode()
-        funplayer.delete_memory()
+        #funplayer.delete_memory()
         funplayer.play(newpred)
 
 def forExitcode(predname):

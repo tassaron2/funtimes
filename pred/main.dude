@@ -10,6 +10,7 @@ dude = you
         # because % is expanded before set is executed
         # therefore this 'ends' the current quest, i.e. job
         set %currentquest% = 900
+        add 1 to playerDay
     /if
 
     if doAttackMessageProbe is 1

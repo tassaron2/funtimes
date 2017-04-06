@@ -10,12 +10,15 @@
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # FUNTIMES parser for Predicament files & associated stuff
-# parses files in PREDDIR and DUDEDIR filepaths
+# parses files in PREDDIR and DUDEDIR filepaths 
 # does nothing to /src, just references it in replaceTilde()
 # defines objects used by funplayer.py to play a game
 #
 # TODO: different fatality levels for BadPredicamentError & option to ignore minor
 # TODO: fix pred functions not applying their mapnames for some weird reason
+# TODO: bring back yell! to bold text
+# TODO: allow action = to run some code on this pred instead of going to a new pred
+# TODO: goto and functions can run the same code so they could be same thing
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -43,8 +46,6 @@ class Parser:
         '''
         Central hub from which all pred and dude file parsing is done.
         '''
-
-        
         
         def init_trackers(isPredicament,isDude):
             # this list stores functions to call when parsing is done
@@ -1076,7 +1077,7 @@ prederrors = (
     "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet.",
     "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id",
     "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
-    "in %s, %s has an invalid map line:\n%s",
+    "in %s,\n%s has an invalid map line:\n%s",
 )
 
 MYPATH = os.path.dirname(os.path.realpath(__file__))
