@@ -34,6 +34,19 @@ predicament = viewsupereasyQuest2
     function = jobview
 /predicament
 
+predicament = viewsupereasyQuest3
+    map=
+    %playerName%,
+
+    DO STUFF FRO ME PLX
+    RLY NEED HELP
+
+    -%dudename%
+    /map
+    set reward = 45
+    function = jobview
+/predicament
+
 predicament = acceptviewsupereasyQuest1
     set supereasyQuest1 to 1
     exit = supereasyQuest1entry
@@ -41,6 +54,10 @@ predicament = acceptviewsupereasyQuest1
 predicament = acceptviewsupereasyQuest2
     set supereasyQuest2 to 1
     exit = supereasyQuest2entry
+/predicament
+predicament = acceptviewsupereasyQuest3
+    set supereasyQuest3 to 1
+    exit = supereasyQuest3entry
 /predicament
 
 predicament = supereasyProbe
@@ -51,14 +68,6 @@ predicament = supereasyProbe
     if probeFollowing is 1
         then
         dude = P -> supereasyProbe
-    /if
-    if editedFile is 1
-        then
-        action = Complete mission -> completesupereasyQuest1
-    /if
-    if downloadedFile is 1
-        then
-        action = Complete mission -> completesupereasyQuest2
     /if
 /predicament
 
@@ -92,13 +101,14 @@ predicament = viewsupereasyfileserver
 
 predicament = supereasyfileserverfiles
     text = Viewing files...
-    text = [junk]
-    text = [junk]
-    text = [TARGET] Harsen %girlname% Final.rtf
-    text = [junk]
+    text = [junk] nologo.png
+    text = [junk] GuyFinal.docx
+    text = [TARGET] Harsen%girlname%Final.rtf
+    text = [junk] tulipe.doc
 /predicament
 
 predicament = editsupereasyfileserver
     type = goto -> %predname%
     set editedFile to 1
+    set completedMission to 1
 /predicament

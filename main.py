@@ -25,6 +25,7 @@ startStats = {
     'playerMoney'     : 20,
     'supereasyQuest1' : 0,
     'supereasyQuest2' : 0,
+    'supereasyQuest3' : 0,
     'currentquest'    : '',
     'doAttackMessageProbe' : 0,
 }
@@ -66,7 +67,8 @@ def main(startat='mainmenu'):
 
 def forExitcode(predname):
     def makeQuestVars(questname):
-        return { questname     : 0,
+        return {'currentquest' : questname,
+                 questname     : 0,
                 'probeAngered' : 0,
                 'probeTick'    : 0,
                'probeProgress' : 0,
@@ -77,12 +79,14 @@ def forExitcode(predname):
               'viewingFiles'   : 0,
               'viewingEmails'  : 0,
               'deletedEmail'   : 0,
+            'completedMission' : 0,
         }
         
     varsForPredname = {
                 'mainmenu' :  playerData,
     'supereasyQuest1entry' :  makeQuestVars('supereasyQuest1'),
     'supereasyQuest2entry' :  makeQuestVars('supereasyQuest2'),
+    'supereasyQuest3entry' :  makeQuestVars('supereasyQuest3'),
     }
     try:
         return varsForPredname[predname]

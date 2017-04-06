@@ -74,9 +74,5 @@ predicament = completesupereasyQuest1
 predicament = supereasyQuest1completescreen
     name = Mission Complete
     text = You edited %girlname%'s file!
-    text = As compensation you received $%reward%.
-    add %reward% to playerMoney
-    set supereasyQuest1 to 10
-    add 1 to playerDay
-    action = OK -> quit
+    function = completescreen
 /predicament

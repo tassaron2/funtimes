@@ -50,3 +50,10 @@ predicament = seQ2lll
     function = supereasyProbe
     right  = seQ2ll
 /predicament
+
+predicament = supereasyQuest2completescreen
+    name = Mission Complete
+    text = You deleted the embarrassing email for %jerkname%!
+    text = Thankfully the moral impact of your actions is unimportant considering the amount of dough you made.
+    function = completescreen
+/predicament

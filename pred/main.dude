@@ -23,4 +23,9 @@ dude = you
         then
         quit
     /if
+    
+    if completedMission is 1
+        then
+        action = Complete mission -> complete%currentquest%
+    /if
 /dude
