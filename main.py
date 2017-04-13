@@ -8,8 +8,17 @@
 # Trying doing file viewing as a separate menu
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+# Copyright (C) 2017 Brianna Rainey
 #
-# Licence would go here if anyone cared
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# file named "COPYING" (included with this program) for more details.
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import os
@@ -69,11 +78,6 @@ def forExitcode(predname):
     def makeQuestVars(questname):
         return {'currentquest' : questname,
                  questname     : 0,
-                'probeAngered' : 0,
-                'probeTick'    : 0,
-               'probeProgress' : 0,
-              'probeFollowing' : 0,
-              'probeHP'        : 50,
               'editedFile'     : 0,
               'downloadedFile' : 0,
               'viewingFiles'   : 0,

@@ -1,0 +1,79 @@
+version = 1
+predicament = supereasyQuest1entry
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    sound = ~/entry.wav
+    entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
+    left = seQ1-hall1
+/predicament
+
+predicament = seQ1-hall1
+    map = auto
+    dude = Y -> you
+    set saidmessage=0
+    function = supereasyProbe
+    right = supereasyQuest1entry
+    left = seQ1-tjunc1
+/predicament
+
+predicament = seQ1-tjunc1
+    map = auto
+    function = supereasyProbe
+    entry = %playerName%: Ah crap.
+    dude = P -> supereasyProbe
+    dude = Y -> you
+    right = seQ1-hall1
+    left = seQ1-endright1
+    up = seQ1-vend1
+/predicament
+
+predicament = seQ1-endright1
+    map = auto
+    dude = Y -> you
+    function = supereasyProbe
+    right = seQ1-tjunc1
+/predicament
+
+predicament = seQ1-vend1
+    map = auto
+    dude = Y -> you
+    dude = F -> supereasyfileserver
+    F = 4,3
+    function = supereasyProbe
+    if saidmessage is 1
+        then
+        set saidmessage to 2
+        text = %playerName%: I can't believe this has no security at all.
+    /if
+    entry = %playerName%: Here it is...
+    action = View Files -> viewsupereasyfileserver
+    if viewingFiles is 1
+        and
+    if editedFile is 0
+        then
+        action = Edit File -> editsupereasyfileserver
+        action editsupereasyfileserver = 
+    /if
+    if viewingFiles is 1
+        then
+        set viewingFiles = 0
+        function = supereasyfileserverfiles
+    /if
+    if editedFile is 1
+        then
+        text = Mission completed! Just need to hit the obvious button to receive my dough.
+    /if
+    
+    down = seQ1-tjunc1
+/predicament
+
+predicament = completesupereasyQuest1
+    exit = supereasyQuest1completescreen
+/predicament
+
+predicament = supereasyQuest1completescreen
+    name = Mission Complete
+    text = You edited %girlname%'s file!
+    function = completescreen
+/predicament

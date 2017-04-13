@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-#
 # main.py for an example game
 # last modified 2017/04/02
 # created 2017/03/23 by tassaron
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-#
-# Licence would go here if anyone cared
+# This file is provided as reference material for how to use Funplayer.
+# You may use the code in this file however you wish.
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import os

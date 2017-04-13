@@ -1,24 +1,32 @@
 #!/usr/bin/env python3
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-#
 # funplayer.py
-# last modified 2017/04/02
-# created 2017/03/23
-#
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-#
 # fundamental objects for computing Funtimes output is at the top
 # under the next 'comment flag' is GTK stuff for the window
 # but this is designed to be flexible so another window could be used later
 #
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+# Copyright (C) 2017 Brianna Rainey
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# file named "COPYING" (included with this program) for more details.
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+# last modified 2017/04/12
+# created 2017/03/23
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 # TODO: Make window properly resizeable, by keeping mapwindow/controls static
 #       and scaling the textwindow to fill more space
 # TODO: ctrl+up enlarges text
 # TODO: sum the button label lengths as we go, so the buttons can linebreak if needed
-#
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-#
-# Licence would go here if anyone cared
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 import funtimes
@@ -61,7 +69,7 @@ class Predicament:
         while True:
             self.name = predname
             # make a wholly new predicament
-            self.pred = funtimes.Predicament(predname)
+            self.pred = funtimes.makePredicament(predname)
             if not self.pred.goto:
                 break
             else:

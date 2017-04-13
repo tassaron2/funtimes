@@ -1,5 +1,12 @@
 version = 1
 dude = supereasyProbe
+    init =
+        set probeHP = 50
+        set probeAngered = 0
+        set probeTick = 0
+        set probeProgress = 0
+        set probeFollowing = 0
+    /init
     tile = ~/probe.png
     tick = 1
         # this var is for tracking the FIRST first tick :p
