@@ -21,15 +21,15 @@
 # <http://www.gnu.org/licenses/>
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
-import os
+from tempfile import gettempdir
 from difflib import SequenceMatcher
 from string import ascii_letters
 from shutil import copytree, rmtree
+import os
 import atexit
 import random
 
 MYPATH  = os.path.dirname(os.path.realpath(__file__))
-
 prederrors = (
     '',
     "what the hell? i can't find predicament %s\ndid you modify it while the game was running?", # 1
@@ -95,6 +95,9 @@ class FuntimesError(Exception):
             shell=True, executable='/bin/bash')
         quit()
 
+def makeTmpDir():
+    return os.path.join(gettempdir(), 'funtimesenginedata')
+
 def overwriteTree(olddir, newdir):
     while True:
         try:
@@ -106,8 +109,7 @@ def overwriteTree(olddir, newdir):
 
 @atexit.register
 def deleteTmpFiles():
-    from funtimes import TMPDIR
-    rmtree(TMPDIR)
+    rmtree(makeTmpDir())
 
 def getNonBlankLine(fp):
     line = ''

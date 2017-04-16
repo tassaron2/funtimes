@@ -1,14 +1,14 @@
 version = 1
 predicament = supereasyQuest1entry
     map =
-    #################################
-    ##############                  #
-    #        #                      #
-    #         ###                   #
-    ###                             #
-    #####                           #
-    ######                          #
-    #################################
+    ##################
+    ##########       #
+    #        #       #
+    #         ###    #
+    ###              #
+    #####            #
+    ######           #
+    ##################
     /map
     dude = Y -> you
     dude = P -> supereasyProbe
@@ -23,6 +23,7 @@ predicament = supereasyQuest1entry
     if editedFile is 1
         then
         text = Mission completed! Just need to hit the obvious button to receive my dough.
+        action = Complete Mission -> completesupereasyQuest1
     /if
 
     up = code

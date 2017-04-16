@@ -65,6 +65,8 @@ def set_variables(dictionary):
 def delete_memory():
     global predicaments
     predicaments = {}
+    # overwrite any changes written to the temp files
+    funtimes.TempFile.resetTempFiles()
 
 class Predicament:
     # does computation of Predicament objects created by funtimes module
@@ -526,12 +528,12 @@ class MapGrid(Gtk.Grid):
                     self.attach(self.tile(tileForChar(char), char), col, row, 1, 1)
 
     def tile(self, pathtofile, char):
-        if pathtofile==char:
+        if pathtofile == char:
             thisTile = Gtk.Label(char)
         else:
             thisTile = Gtk.Image()
-            if pathtofile=='':
-                thisTile.set_size_request(32,32)
+            if pathtofile == '':
+                thisTile.set_size_request(32, 32)
             else:
                 pixbuf = GdkPixbuf.Pixbuf().new_from_file_at_scale(pathtofile,32, 32, True)
                 thisTile.set_from_pixbuf(pixbuf)
@@ -549,7 +551,7 @@ class OKWindow(Gtk.Dialog):
 
 # GLOBALS
 window = Funwindow()
-delete_memory()
+predicaments = {}
 
 def getColor(key):
     if key in Funwindow.color:
