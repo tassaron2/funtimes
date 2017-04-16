@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-# funplayer.py
-# fundamental objects for computing Funtimes output is at the top
-# under the next 'comment flag' is GTK stuff for the window
-# but this is designed to be flexible so another window could be used later
-#
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+'''
+    FUNTIMES player for linking predicaments together & drawing a window
+    currently using GTK+ 3
+'''
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 # Copyright (C) 2017 Brianna Rainey
+# This file is part of FUNTIMES
 #
-# This program is free software: you can redistribute it and/or modify
+# FUNTIMES is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
@@ -16,19 +15,27 @@
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# file named "COPYING" (included with this program) for more details.
+# GNU General Public License for more details.
 #
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+# You should have received a copy of the GNU General Public License
+# along with this program, in a file named "COPYING".  If not, see
+# <http://www.gnu.org/licenses/>
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 # last modified 2017/04/12
 # created 2017/03/23
 #
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+# fundamental objects for computing Funtimes output is at the top
+# under the next 'comment flag' is GTK stuff for the window
+# but this is designed to be flexible so another window could be used later
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 # TODO: Make window properly resizeable, by keeping mapwindow/controls static
 #       and scaling the textwindow to fill more space
 # TODO: ctrl+up enlarges text
 # TODO: sum the button label lengths as we go, so the buttons can linebreak if needed
 #
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 import funtimes
 from textwrap import wrap
 from html import escape
@@ -63,7 +70,7 @@ class Predicament:
     # does computation of Predicament objects created by funtimes module
     # flexible so a non-gtk window could be used if it has the same interface
     # e.g. easier to make it work in terminal or on a webpage
-    
+
     def __init__(self, predname, oldpred=None):
         # each instance only plays 1 predicament
         while True:
@@ -132,7 +139,7 @@ class Predicament:
         else:
             # it's an imposter :|
             self.hasFakeDudes=True
-            
+
     def tick(self):
         # our tick tracks time passage in this pred only
         # the window tick should measure total game ticks
@@ -185,7 +192,7 @@ class Dude:
             getInput.kill()
         elif eventType=='exit':
             getInput.closewin(event)
-            
+
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -198,23 +205,23 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 
 class getInput:
     exitcode = 9
-    
+
     @staticmethod
     def kill(*args):
         getInput.exitcode = 9
         getInput.main_quit()
-        
+
     @staticmethod
     def closewin(*args):
         getInput.exitcode = args[-1]
         getInput.main_quit()
-        
+
     @staticmethod
     def main_quit():
         Gtk.main_quit()
-        
+
 def main():
-    #gtkStyle()    
+    #gtkStyle()
     Gtk.main()
     return getInput.exitcode
 
@@ -305,7 +312,7 @@ class Funwindow(Gtk.Window):
     color = colorChoice['generic']
     height = 320
     width = 648
-    
+
     def __init__(self):
         # call mom's initializer first :)
         super().__init__()
@@ -408,7 +415,7 @@ class Body(Gtk.Box):
         self.actionButtons = ActionButtons()
         self.lowBox.pack_start(self.arrowButtons, False, False, 0)
         self.lowBox.pack_start(self.actionButtons, False, False, 0)
-        
+
 
 class ActionButtons(Gtk.Box):
     # area of the window where buttons go for actions
@@ -416,7 +423,7 @@ class ActionButtons(Gtk.Box):
         super().__init__()
         self.set_border_width(4)
         self.set_spacing(4)
-    
+
     def makeButton(self, label, gotoPred):
         button = Gtk.Button()
         buttonlabel = Gtk.Label()
@@ -430,7 +437,7 @@ class ActionButtons(Gtk.Box):
         else:
             button.set_sensitive(False)
         return button
-    
+
     def add(self, label, gotoPred):
         button = self.makeButton(label, gotoPred)
         self.pack_start(button, False, False, 0)
@@ -495,7 +502,7 @@ class MapBox(Gtk.Box):
         super().__init__()
         self.set_orientation(Gtk.Orientation.VERTICAL)
         self.set_border_width(4)
-        
+
     def create(self, tilemap, tileForChar):
         for line in tilemap:
             line = funtimes.replaceVariables(line)

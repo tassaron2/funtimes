@@ -11,6 +11,7 @@ predicament = supereasyQuest1entry
     #################################
     /map
     dude = Y -> you
+    dude = P -> supereasyProbe
     sound = ~/entry.wav
     entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
 
@@ -26,6 +27,7 @@ predicament = supereasyQuest1entry
 
     up = code
         Y = ~,-1
+        set editedFile = 1
     /up
     down = code
         Y = ~,+1

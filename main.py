@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
-#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 # very early main.py for Tarasius
 # last modified 2017/04/02
 # created 2017/03/23 by tassaron
 #
-# Trying doing file viewing as a separate menu
-#
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 # Copyright (C) 2017 Brianna Rainey
+# This file is part of FUNTIMES
 #
-# This program is free software: you can redistribute it and/or modify
+# FUNTIMES is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
@@ -18,9 +16,13 @@
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# file named "COPYING" (included with this program) for more details.
+# GNU General Public License for more details.
 #
-#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
+# You should have received a copy of the GNU General Public License
+# along with this program, in a file named "COPYING".  If not, see
+# <http://www.gnu.org/licenses/>
+#
+#=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 import os
 import funplayer
 
@@ -54,7 +56,7 @@ def main(startat='mainmenu'):
     funplayer.set_mode('MENU')
     funplayer.play(startat)
     newpred = startat
-    
+
     while True:
         output = funplayer.main()
         if type(output)==int:
@@ -85,7 +87,7 @@ def forExitcode(predname):
               'deletedEmail'   : 0,
             'completedMission' : 0,
         }
-        
+
     varsForPredname = {
                 'mainmenu' :  playerData,
     'supereasyQuest1entry' :  makeQuestVars('supereasyQuest1'),
