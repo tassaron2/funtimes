@@ -79,6 +79,9 @@ prederrors = (
     "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id",
     "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
     "in %s,\n%s has an invalid map line:\n%s",
+    # ^-- 45
+    "in %s,\npredicament %s fell off the map\nwhile searching for a spot near %s, %s",
+    "in %s,\npredicament %s has this line:\n%s\nbut variable names must be 2 characters or greater\na 1-char name would get mixed up with the dudes!"
 )
 
 class FuntimesError(Exception):
@@ -166,7 +169,7 @@ def giveNumberIfPossible(value):
     return value
 
 def stringSimilarity(a, b):
-    return SequenceMatcher(None, a, b).ratio()
+    return SequenceMatcher(None, a, b).quick_ratio()
 
 def randomString():
     return "".join([random.choice(ascii_letters) for i in range(20)])

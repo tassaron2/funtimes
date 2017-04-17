@@ -32,6 +32,7 @@ import funplayer
 SRCPATH = ( os.path.join(os.path.realpath(__file__), 'src'))
 
 startStats = {
+    'playerName'      : 'Tarasius',
     'playerDay'       : 1,
     'playerMoney'     : 20,
     'supereasyQuest1' : 0,
@@ -39,14 +40,14 @@ startStats = {
     'supereasyQuest3' : 0,
     'currentquest'    : '',
     'doAttackMessageProbe' : 0,
+    'playerSP'        : 0,
+    'playerAttackDmg' : 6,
 }
 
 playerData = {
-    'playerName'      : 'Tarasius',
     'playerHP'        : 100,
     'playerdead'      : 0,
-    'playerSP'        : 0,
-    'playerAttackDmg' : 6,
+    'probeTick'       : 0,
 }
 
 def main(startat='mainmenu'):
@@ -73,7 +74,7 @@ def main(startat='mainmenu'):
             funplayer.set_mode('MENU')
         else:
             funplayer.set_mode()
-        #funplayer.delete_memory()
+        funplayer.delete_memory()
         funplayer.play(newpred)
 
 def forExitcode(predname):

@@ -1,24 +1,23 @@
 version = 1
 dude = supereasyProbe
-    init =
-        set probeHP = 50
-        set probeAngered = 0
-        set probeTick = 0
-        set probeProgress = 0
-        set probeFollowing = 0
-    /init
+    exec =
+        if probeTick = 0
+            then
+            set probeHP = 50
+            set probeAngered = 0
+            set probeProgress = 0
+            set probeFollowing = 0
+            # save the first room so it doesn't have its dude added there by function
+            set probeOrigin = %predname%
+        /if
+    /exec
+
     tile = ~/probe.png
     tick = 1
         # this var is for tracking the FIRST first tick :p
         set probeTick = 1
         text = A basic security probe is here.
     /tick
-
-    if probeTick = 0
-        then save the probe's first room so it
-        # doesn't have its dude added there by function
-        set probeOrigin = %predname%
-    /if
 
     if probeHP is < 1
         then

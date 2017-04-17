@@ -82,11 +82,9 @@ class Parser:
                 Parser.tempIfLevel = 0
             if isPredicament:
                 readingTick = -1
-                readingTickPassThru = None
             elif isDude:
                 readingTick = 0
-                readingTickPassThru = self
-            return readingTick, readingTickPassThru
+            return readingTick
 
         def init_env_predname(isPredicament):
             '''For convenient use in preds, the %predname% environment
@@ -131,6 +129,8 @@ class Parser:
                 func()
             if self.isFunction:
                 self._on_parser_finish = []
+            if isPredicament:
+                addDudesToMap()
 
         def getFilenameAndLine(dir_, filetype, name):
             # get the info we have in the global dicts...
@@ -152,65 +152,48 @@ class Parser:
             return filename, lineNo, virtualLines
 
         def findStartPoint(fp, lineNo, lookingFor, name):
-            # cProfile says this causes barely any overhead with 1000s of lines
-            # we could do something like this: http://stackoverflow.com/a/620492
-            # however it adds extra complexity w/o gain, unless file is collosal
             busy = False  # whether we are currently reading something
-            # now get to the right line and test it
             for line in fp:
                 # count down to the correct line
                 if lineNo > 1:
                     lineNo -= 1
                     continue
                 line = line.strip()
-                '''
-                TODO: fix this part
-                # we know this is the right line
-                # but don't trust the dictionary & check anyway!
-                if line.find('%s =' % lookingFor) != 0:
-                    raise FuntimesError(1, name)
-                # if it's the wrong thing, freak the hell out
-                elif name != line.split('=')[1].strip():
-                    raise FuntimesError(2, name)
-                '''
                 busy = True
                 break
             if not busy:
                 raise FuntimesError(5, self.filename, name)
-            return True
+            return line
 
         def addDudesToMap():
             '''called by _on_parser_finish'''
             allthepredmap = str(self.predmap)
-            for symbol in self.dudeSymbols:
-                if symbol in allthepredmap:
-                    continue
-                elif symbol in self.dudeLocations:
-                    x, y = self.dudeLocations[symbol]
-                    row = self.predmap[y]
-                    self.predmap[y] = '%s%s%s' % \
-                        (row[:x], symbol, row[x+1:])
-            #if self.dudeLocations:
-                #print(self.dudeLocations)
+            if len(allthepredmap) > 2:
+                for symbol in self.dudeSymbols:
+                    if symbol in allthepredmap:
+                        continue
+                    elif symbol in self.dudeLocations:
+                        x, y = self.dudeLocations[symbol]
+                        row = self.predmap[y]
+                        self.predmap[y] = '%s%s%s' % \
+                            (row[:x], symbol, row[x+1:])
 
         def giveAllDudesLocations():
-            for symbol in self.dudeSymbols:
-                if symbol not in self.dudeLocations:
-                    mapLength = len(self.predmap)
-                    while True:
-                        # picks a random index of a string across a random row
-                        randomY = random.randint(1, mapLength-1)
-                        randomRowLine = self.predmap[randomY]
-                        randomX = random.randint(1, len(randomRowLine)-1)
-                        # make sure it's a free spot
-                        if randomRowLine[randomX] != ' ':
-                            continue
-                        else:
-                            self.dudeLocations[symbol] = (randomX, randomY)
-                            break
-
-        def writeLines():
-            TempFile.writeLines(virtualLines, self.name)
+            mapLength = len(self.predmap)
+            if mapLength:
+                for symbol in self.dudeSymbols:
+                    if symbol not in self.dudeLocations:
+                            while True:
+                                # picks a random index of a string across a random row
+                                randomY = random.randint(1, mapLength-1)
+                                randomRowLine = self.predmap[randomY]
+                                randomX = random.randint(1, len(randomRowLine)-1)
+                                # make sure it's a free spot
+                                if randomRowLine[randomX] != ' ':
+                                    continue
+                                else:
+                                    self.dudeLocations[symbol] = (randomX, randomY)
+                                    break
 
         whatIAm, isPredicament, isDude = whoAmI(filetype)
 
@@ -222,13 +205,8 @@ class Parser:
             # find line in file where this predicament begins...
             busy = findStartPoint(fp, lineNo, whatIAm, self.name)
             # initialize some tracking variables
-            readingTick, readingTickPassThru = \
-                init_trackers(isPredicament, isDude)
+            readingTick = init_trackers(isPredicament, isDude)
             oldpredname = init_env_predname(isPredicament)
-            if isPredicament:
-                self._on_parser_finish.append(addDudesToMap)
-            if virtualLines:
-                self._on_parser_finish.append(writeLines)
 
             # finally, we start actually assigning the data
             # line should be true (it should still be the new line)
@@ -248,11 +226,15 @@ class Parser:
                     line = self.virtualLines.pop(0)
                 else:
                     # finished reading!
+                    if virtualLines:
+                        TempFile.writeLines(self, virtualLines)
                     busy = False
                     break
 
                 #=~  FIRST DO STUFF WITHOUT = IN IT
                 if line.find("/%s" % whatIAm) == 0:
+                    # finished reading the file!
+                    # (but there could still be virtualLines)
                     doneReadingFile = True
                     if isPredicament:
                         giveAllDudesLocations()
@@ -261,11 +243,10 @@ class Parser:
                     self._parse_quit(readingTick)
                     continue
                 if isDude and line.find("/tick") == 0 \
-                    or isDude and line.find("/init") == 0:
+                    or isDude and line.find("/exec") == 0:
                     readingTick=0
                     continue
-                if Parser.doWeirdLines(fp, self.filename, self.name, line,
-                        readingTick, readingTickPassThru):
+                if self._parse_weird_lines(fp, line, readingTick):
                     # if this returns True then it did the parsing work for us
                     continue
 
@@ -304,7 +285,7 @@ class Parser:
                 elif key == 'tile' and isDude:
                     self.tile = value
                     continue
-                elif key == 'init' and isDude:
+                elif key == 'exec' and isDude:
                     readingTick = -1
                     continue
                 elif key == 'entry' and isPredicament:
@@ -382,26 +363,16 @@ class Parser:
                     continue
 
         def doCode():
-            line=True
-            newlines=[]
-            while line:
-                line = getNonBlankLine(fp)
-                if line.find('/%s' % key) == 0:
-                    # skip this line & end
-                    break
-                newlines.append(line)
-            newpred = VirtualPredicament.register(self.name, newlines)
+            newpred = VirtualPredicament.register(self.name, fp, '/%s' % key)
             return None, newpred
 
         try:
             label, goto = value.split('->')
         except ValueError:
-            if value.strip()=='code':
+            if value.strip()=='':
                 label, goto = doCode()
             else:
-                raise FuntimesError(700078)
-        else:
-            label, goto = None, value
+                label, goto = None, value
         sendToPredicament(label, goto)
 
     def _parse_name(self, value, readingTick):
@@ -431,6 +402,265 @@ class Parser:
         elif readingTick > -1:
             self.addEvent(readingTick, 'exit', value)
 
+    def _parse_weird_lines(self, fp, line, readingTick):
+        # returns True if it successfully parses a weird line
+        # readingTick defaults to -1 for Predicaments, otherwise this is a Dude
+
+        def doSet(line, readingTick=-1):
+            # readingTick defaults to -1 for Predicaments
+            # when readingTick is 0 or higher, it's for use by Dudes
+            try:
+                key, value = line.split('=')
+            except ValueError:
+                try:
+                    key, value = line.split(' to ')
+                except ValueError:
+                    raise FuntimesError(31, self.filename, self.name, line)
+            # strip out the 'set ' part
+            key = key[4:].strip()
+            value = value.strip()
+            # store it in the Predicament class dictionary right away
+            # OR create a Dude event for it if this is a Dude
+            # change value to a real number or something else if necessary
+
+            key = replaceVariables(key)
+            newvalue = replaceVariables(value)
+            if value == 'random':
+                newvalue = random.randint(1,100)
+
+            if len(key)<2:
+                raise FuntimesError(47, self.filename, self.name, line)
+
+            try:
+                if type(Predicament.variables[key]) in (int, float):
+                    newvalue = int(newvalue)
+            except KeyError:
+                # nonexistaent variable!
+                newvalue = giveNumberIfPossible(newvalue)
+            except ValueError:
+                # TODO: setting number variable to a string variable
+                pass
+
+            if readingTick == -1:
+                # this is happening immediately
+                Predicament.variables[key] = newvalue
+            elif readingTick == 0:
+                self.everytick.append(('set','%s=%s' % (key, newvalue)))
+            elif readingTick>0:
+                self._events.append(('set','%s=%s' % (key, newvalue)))
+                self.eventNums.append(readingTick)
+
+        def doMath(line, operator, preposition, readingTick=-1):
+            '''args: line, 'add'/'subtract', 'to'/'from', readingTick'''
+            # readingTick defaults to -1 for Predicaments, else this is a Dude
+            try:
+                # variable assignment literally backwards, because that's fun
+                # square bracket weirdness removes the operator from the line
+                start = len(operator)+1
+                value, key = line[start:].split(' %s ' % preposition)
+                value = value.strip()
+                key = key.strip()
+            except ValueError:
+                raise FuntimesError(35, self.filename, self.name,
+                    line, preposition, preposition)
+            if type(Predicament.variables[key]) != int:
+                raise FuntimesError(38, self.filename, self.name, line, key,
+                    '%s %s' % (operator, preposition))
+            # make sure variable exists
+            if key not in Predicament.variables:
+                raise FuntimesError(10, self.filename, self.name, line, key)
+
+            if readingTick == -1:
+                # we're doing this immediately - make it a number
+                try:
+                    value = int(value)
+                except ValueError:
+                    # is it not a goddamn number?
+                    try:
+                        value = int(replaceVariables(value))
+                    except ValueError:
+                        # yeah, it's not a goddamn number
+                        raise FuntimesError(37, self.filename, self.name,
+                            line, value)
+                if operator == 'add':
+                    Predicament.variables[key] += value
+                elif operator == 'subtract':
+                    Predicament.variables[key] -= value
+                else:
+                    raise FuntimesError(555555)
+            elif readingTick == 0:
+                self.everytick.append(('%s' % operator,
+                                       '%s=%s' % (key, value)))
+            elif readingTick>0:
+                self._events.append(('%s' % operator,
+                                     '%s=%s' % (key, value)))
+                self.eventNums.append(readingTick)
+
+        def computeIf(fp, line):
+            def doIf(fp, line):
+                # code from 2013
+                # figures out whether to read conditional stuff in pred definitions
+                # first, parse the line itself to get key and value
+
+                # try splitting the if on 'is' or '='
+                # nested trys are ugly, we could maybe do something better
+                # try this
+                for splitter in (' is ', '='):
+                    try:
+                        key, value = line.split(splitter)
+                    except ValueError:
+                        continue
+                    break
+                else:
+                    raise FuntimesError(26, fp.name, self.name, line)
+
+                # while removing the 'if ' from the key...
+                potentialKey = replaceVariables(key[3:].strip())
+                if potentialKey in Predicament.variables:
+                    # try expanding % first
+                    key = potentialKey
+                else:
+                    # if that won't work try stripping out %
+                    key = findVariables(key[3:].strip())
+
+                negate = False
+                if value.startswith('not '):
+                    value = value[4:] # remove the 'not ' part
+                    negate = True
+
+                if len(key) == 1:
+                    isDude = True
+                    value = eval(value.strip())
+                else:
+                    isDude = False
+                    value = replaceVariables(value)
+
+                # why is this happening in here? global vars >:O
+                Parser.tempIfLevel = Parser.readingIfLevel + 1
+
+                # wtf
+                while True:
+                    if isDude:
+                        conditionIsTrue = ( self.dudeLocations[key] == value )
+                        if negate:
+                            conditionIsTrue = not conditionIsTrue
+                        break
+                    elif key not in Predicament.variables.keys():
+                        # if the var doesn't exist, freak the hell out
+                        #raise FuntimesError(10, fp.name, name, line, key)
+                        conditionIsTrue = False
+                        break
+
+                    # > and < comparison
+                    if value.startswith('>') or value.startswith('<'):
+                        if negate:
+                            raise FuntimesError(29, fp.name, self.name, line)
+                        if type(Predicament.variables[key]) not in (int, float):
+                            # the key isn't a comparable type
+                            raise FuntimesError(24, fp.name, self.name, line, key)
+                        try:
+                            comparee = eval(value[1:])
+                        except NameError:
+                            # it's not a comparable value.
+                                raise FuntimesError(25, fp.name, self.name, line,
+                                                          key, value[1:].strip())
+                        if value[1:].strip() in dir():
+                            # uh oh. a consequence of using eval...
+                            # try to stop file referring to variables in this module
+                            raise FuntimesError(96)
+                        if type(comparee) not in (int, float):
+                            # the value isn't a comparable type
+                            raise FuntimesError(25, fp.name, self.name, value,
+                                                      Predicament.variables[key], comparee)
+                        if value.startswith('>'):
+                            conditionIsTrue = ( Predicament.variables[key] > comparee )
+                        elif value.startswith('<'):
+                            conditionIsTrue = ( Predicament.variables[key] < comparee )
+                        break
+
+                    # if the value doesn't start with > or < ...
+                    else:
+                        if type(Predicament.variables[key]) == int:
+                            try:
+                                conditionIsTrue = ( Predicament.variables[key] == int(value) )
+                            except ValueError:
+                                if negate:
+                                    conditionIsTrue = True
+                                else:
+                                    conditionIsTrue = False
+                                #raise FuntimesError(25, fp.name, self.name, line, key, value)
+                        else:
+                            conditionIsTrue = ( Predicament.variables[key] == value )
+                        if negate:
+                            conditionIsTrue = not conditionIsTrue
+                        break
+                # end of wtf
+
+                followup = getNonBlankLine(fp).lower() # get 'then', 'and', 'or'
+                if followup.startswith("then not"):
+                    # don't use this, it breaks if more than one statement is processed
+                    # for the simplest statements, it's okay.
+                    return not conditionIsTrue
+                elif followup.startswith("then"):
+                    return conditionIsTrue
+                line = getNonBlankLine(fp)
+                if not line.startswith("if "):
+                    raise FuntimesError(11, fp.name, self.name, "'%s'" % followup)
+                if followup.startswith("and not"):
+                    return ( not doIf(fp, line) and conditionIsTrue )
+                elif followup.startswith("and"):
+                    return ( doIf(fp, line) and conditionIsTrue )
+                elif followup.startswith("or not"):
+                    return ( not doIf(fp, line) or conditionIsTrue )
+                elif followup.startswith("or"):
+                    return ( doIf(fp, line) or conditionIsTrue )
+                raise FuntimesError(11, fp.name, self.name, line)
+
+            def skipIf(fp):
+                while Parser.readingIfLevel < Parser.tempIfLevel:
+                    nextline = getNonBlankLine(fp)
+                    if nextline.startswith("/if"):
+                        Parser.tempIfLevel -= 1
+                    elif nextline.startswith("if "):
+                        Parser.tempIfLevel += 1
+                    elif nextline.find("/predicament") == 0 \
+                    or nextline.find("/tick") == 0:
+                        raise FuntimesError(13, self.name, predname)
+
+            # here's where I jumped through a flaming hoop
+            # to avoid changing ninedotnine's doIf() code :P
+            if doIf(fp, line):
+                # if the condition is true, read normally
+                Parser.readingIfLevel += 1
+            else:
+                # if the condition isn't true,
+                # discard lines until we reach end if
+                skipIf(fp)
+
+        line = line.strip()
+        #=~=~=~=~ '/' BLOCK TERMINATORS
+        if line.find("/if") == 0:
+            if Parser.readingIfLevel > 0:
+                Parser.readingIfLevel -= 1
+                return True
+            raise FuntimesError(12, self.filename, self.name)
+        #=~=~=~=~ IF
+        elif line.startswith("if "):
+            computeIf(fp, line)
+            return True
+        #=~=~=~=~ SET
+        elif line.startswith("set "):
+            doSet(line, readingTick)
+            return True
+        elif line.startswith("add "):
+            doMath(line, 'add', 'to', readingTick)
+            return True
+        elif line.startswith("subtract "):
+            doMath(line, 'subtract', 'from', readingTick)
+            return True
+        # Turns out this isn't a weird line!
+        return False
+
     @staticmethod
     def doEvent(eventType, event):
         '''
@@ -459,249 +689,6 @@ class Parser:
             event = replaceVariables(event)
         return eventType, event
 
-    @staticmethod
-    def doWeirdLines(fp, filename, name, line, readingTick=-1,self=None):
-        # returns True if it successfully parses a weird line
-        # readingTick defaults to -1 for Predicaments
-        # when readingTick is 0 or higher, it's for use by Dudes
-
-        def doSet(filename, predname, line, readingTick=-1,self=None):
-            # readingTick defaults to -1 for Predicaments
-            # when readingTick is 0 or higher, it's for use by Dudes
-            try:
-                key, value = line.split('=')
-            except ValueError:
-                try:
-                    key, value = line.split(' to ')
-                except ValueError:
-                    raise FuntimesError(31, filename, predname, line)
-            # strip out the 'set ' part
-            key = key[4:].strip()
-            value = value.strip()
-            # store it in the Predicament class dictionary right away
-            # OR create a Dude event for it if this is a Dude
-            # change value to a real number or something else if necessary
-
-            key = replaceVariables(key)
-            newvalue = replaceVariables(value)
-            if value == 'random':
-                newvalue = random.randint(1,100)
-
-            try:
-                if type(Predicament.variables[key]) in (int, float):
-                    newvalue = int(newvalue)
-            except KeyError:
-                # nonexistaent variable!
-                newvalue = giveNumberIfPossible(newvalue)
-            except ValueError:
-                # TODO: setting number variable to a string variable
-                pass
-
-            if readingTick == -1:
-                # this is happening immediately
-                Predicament.variables[key] = newvalue
-            elif readingTick == 0:
-                #dude object has been passed to us
-                self.everytick.append(('set','%s=%s' % (key, newvalue)))
-            elif readingTick>0:
-                self._events.append(('set','%s=%s' % (key, newvalue)))
-                self.eventNums.append(readingTick)
-
-        def doMath(filename, name, line, operator, preposition, readingTick=-1,self=None):
-            '''args: filename, name, line, add/subtract, to/from, readingTick, DudeObject'''
-            # readingTick defaults to -1 for Predicaments
-            # when readingTick is 0 or higher, it's for use by Dudes
-            # TODO: reduce stupid number of arguments
-            try:
-                # variable assignment literally backwards, because that's more fun
-                # square bracket weirdness removes the operator from the line
-                start = len(operator)+1
-                value, key = line[start:].split(' %s ' % preposition)
-                value = value.strip()
-                key = key.strip()
-            except ValueError:
-                raise FuntimesError(35, filename, name, line,preposition,preposition)
-            if type(Predicament.variables[key]) != int:
-                raise FuntimesError(38, filename, name, line, key,
-                    '%s %s' % (operator, preposition))
-            # make sure variable exists
-            if key not in Predicament.variables:
-                raise FuntimesError(10, filename, name, line, key)
-
-            # if we're doing this immediately
-            if readingTick == -1:
-                # make it a number
-                try:
-                    value = int(value)
-                except ValueError:
-                    # is it not a goddamn number?
-                    try:
-                        value = int(replaceVariables(value))
-                    except ValueError:
-                        # yeah, it's not a goddamn number
-                        raise FuntimesError(37, filename, name, line, value)
-                if operator == 'add':
-                    Predicament.variables[key]+=value
-                elif operator == 'subtract':
-                    Predicament.variables[key]-=value
-                else:
-                    raise FuntimesError()
-            elif readingTick == 0:
-                #dude object has been passed to us
-                self.everytick.append(('%s' % operator,
-                                       '%s=%s' % (key, value)))
-            elif readingTick>0:
-                self._events.append(('%s' % operator,
-                                     '%s=%s' % (key, value)))
-                self.eventNums.append(readingTick)
-
-        def computeIf(fp, name, line, readingTick=None):
-            def doIf(fp, name, line, readingTick=None):
-                # code from 2013
-                # figures out whether to read conditional stuff in pred definitions
-                # first, parse the line itself to get key and value
-
-                # try splitting the if on 'is' or '='
-                # nested trys are ugly, we could maybe do something better
-                # try this
-                for splitter in (' is ', '='):
-                    try:
-                        key, value = line.split(splitter)
-                    except ValueError:
-                        continue
-                    break
-                else:
-                    raise FuntimesError(26, fp.name, name, line)
-                # while removing the 'if ' from the key...
-                potentialKey = replaceVariables(key[3:].strip())
-                if potentialKey in Predicament.variables:
-                    # try expanding % first
-                    key = potentialKey
-                else:
-                    # if that won't work try stripping out %
-                    key = findVariables(key[3:].strip())
-                value = replaceVariables(value)
-
-                # why is this happening in here? global vars >:O
-                Parser.tempIfLevel = Parser.readingIfLevel + 1
-
-                # make sure key exists
-                if key not in Predicament.variables.keys():
-                    # if the var doesn't exist, freak the hell out
-                    raise FuntimesError(10, fp.name, name, line, key)
-
-                # wtf
-                if value.startswith('>') or value.startswith('<'):
-                    if type(Predicament.variables[key]) not in (int, float):
-                        # the key isn't a comparable type
-                        raise FuntimesError(24, fp.name, name, line, key)
-                    try:
-                        comparee = eval(value[1:])
-                    except NameError:
-                        # it's not a comparable value.
-                            raise FuntimesError(25, fp.name, name, line,
-                                                      key, value[1:].strip())
-                    if value[1:].strip() in dir():
-                    #if value[1:].strip() in dir(__name__):
-                        # uh oh. a consequence of using eval...
-                        # the pred file can refer to variables in this code
-                        # this doesn't even catch all of these cases
-                        # it might, if we hadn't called something else predicaments
-                        raise FuntimesError(96)
-                    if type(comparee) not in (int, float):
-                        # the value isn't a comparable type
-                        raise FuntimesError(25, fp.name, name, value,
-                                                  Predicament.variables[key], comparee)
-                    if value.startswith('>'):
-                        conditionIsTrue = ( Predicament.variables[key] > comparee )
-                    if value.startswith('<'):
-                        conditionIsTrue = ( Predicament.variables[key] < comparee )
-                # if the value doesn't start with > or < ...
-                else:
-                    negate = False
-                    if value.startswith('not '):
-                        value = value[4:] # remove the 'not ' part
-                        negate = True
-                    if value.startswith('<') or value.startswith('>'):
-                        # can't be arsed supporting negated comparisons
-                        raise FuntimesError(29, fp.name, name, line)
-                    if type(Predicament.variables[key]) == int:
-                        try:
-                            conditionIsTrue = ( Predicament.variables[key] == int(value) )
-                        except ValueError:
-                            conditionIsTrue = False
-                            #raise FuntimesError(25, fp.name, name, line, key, value)
-                    else:
-                        conditionIsTrue = ( Predicament.variables[key] == value )
-                    if negate:
-                        conditionIsTrue = not conditionIsTrue
-                # end of wtf
-
-                followup = getNonBlankLine(fp).lower() # get 'then', 'and', 'or'
-                if followup.startswith("then not"):
-                    # don't use this, it breaks if more than one statement is processed
-                    # for the simplest statements, it's okay.
-                    return not conditionIsTrue
-                elif followup.startswith("then"):
-                    return conditionIsTrue
-                line = getNonBlankLine(fp)
-                if not line.startswith("if "):
-                    raise FuntimesError(11, fp.name, name, "'%s'" % followup)
-                if followup.startswith("and not"):
-                    return ( not doIf(fp, name, line) and conditionIsTrue )
-                elif followup.startswith("and"):
-                    return ( doIf(fp, name, line) and conditionIsTrue )
-                elif followup.startswith("or not"):
-                    return ( not doIf(fp, name, line) or conditionIsTrue )
-                elif followup.startswith("or"):
-                    return ( doIf(fp, name, line) or conditionIsTrue )
-                raise FuntimesError(11, fp.name, name, line)
-
-            def skipIf(fp, predname):
-                while Parser.readingIfLevel < Parser.tempIfLevel:
-                    nextline = getNonBlankLine(fp)
-                    if nextline.startswith("/if"):
-                        Parser.tempIfLevel -= 1
-                    elif nextline.startswith("if "):
-                        Parser.tempIfLevel += 1
-                    elif nextline.find("/predicament") == 0 \
-                    or nextline.find("/tick") == 0:
-                        raise FuntimesError(13, 'idk', predname)
-
-            # here's where I jumped through a flaming hoop
-            # to avoid changing ninedotnine's doIf() code :P
-            if doIf(fp, name, line, readingTick):
-                # if the condition is true, read normally
-                Parser.readingIfLevel += 1
-            else:
-                # if the condition isn't true,
-                # discard lines until we reach end if
-                skipIf(fp, name)
-
-        line = line.strip()
-        #=~=~=~=~ '/' BLOCK TERMINATORS
-        if line.find("/if") == 0:
-            if Parser.readingIfLevel > 0:
-                Parser.readingIfLevel -= 1
-                return True
-            raise FuntimesError(12, filename, name)
-        #=~=~=~=~ IF
-        elif line.startswith("if "):
-            computeIf(fp, name, line, readingTick)
-            return True
-        #=~=~=~=~ SET
-        elif line.startswith("set "):
-            doSet(filename, name, line, readingTick,self)
-            return True
-        elif line.startswith("add "):
-            doMath(filename, name, line, 'add', 'to', readingTick,self)
-            return True
-        elif line.startswith("subtract "):
-            doMath(filename, name, line, 'subtract', 'from', readingTick,self)
-            return True
-        # Turns out this isn't a weird line!
-        return False
-
 class Predicament(Parser):
     """
     when creating a Predicament, pass in a string holding the name.
@@ -725,7 +712,7 @@ class Predicament(Parser):
         # gotta have more comments than code
         Predicament.numPredicaments += 1
 
-        self.isFunction=False
+        self.isFunction = False
         with suppress(KeyError):
             self.isFunction = kwargs['isFunction']
 
@@ -745,7 +732,7 @@ class Predicament(Parser):
         #=~=~ Dudes
         # a list of dudenames
         self._dudes = []
-        # symbols that represent the parellel dude on a map
+        # symbols that represent the parallel dude on a map
         self.dudeSymbols = []
         self.dudeLocations = {}
         # Funplayer may want to generate Dudes on-the-fly but
@@ -867,7 +854,7 @@ class Predicament(Parser):
                             else:
                                 y -= 1
                     except IndexError:
-                        raise FuntimesError(46787654)
+                        raise FuntimesError(46, self.filename, self.name, x, y)
                 # found a suitable location for the dude!
                 return x, y
 
@@ -1008,6 +995,7 @@ class Predicament(Parser):
             readMap(fp, line)
         elif value == 'auto':
             # put AutoMap function in this queue...
+            doAutoMap()
             self._on_parser_finish.append(doAutoMap)
             # so it can use pred data parsed after this line
         else:
@@ -1159,8 +1147,17 @@ class Dude(Parser):
 class VirtualPredicament:
     '''a predicament created by the engine'''
     @staticmethod
-    def register(oldpredname, newlines):
+    def register(oldpredname, fp, ender):
+        '''give file object seeked to the right position to read virtuallines'''
         global predicaments
+        line=True
+        newlines=[]
+        while line:
+            line = getNonBlankLine(fp)
+            if line.find(ender) == 0:
+                # skip this line & end
+                break
+            newlines.append(line)
         newpredname = Predicament.uniqueName()
         filename, lineNo, extralines = predicaments[oldpredname]
         predicaments[newpredname] = (filename, lineNo, newlines)
@@ -1188,8 +1185,10 @@ class TempFile:
         makeGlobalDicts()
 
     @staticmethod
-    def compressLines():
-        # garbage code I might rewrite, currently unused
+    def compressLines(self, lines):
+        # TODO: use this function to remove all but 1 canonical dudelocation,
+        #   place said location at the top of the pred, so ifs work as expected
+        return lines
         prevLine = 'fhqwhgads'
         for line in dudeSymbols:
             print(line)
@@ -1224,15 +1223,16 @@ class TempFile:
                 newLine = False
 
     @staticmethod
-    def writeLines(newLines, defname, deftype='predicament'):
+    def writeLines(self, newLines, deftype='predicament'):
         if deftype == 'predicament':
             globaldict = predicaments
         elif deftype == 'dude':
             globaldict = dudes
-        filename, targetLineNo, _ = globaldict[defname]
+        filename, targetLineNo, _ = globaldict[self.name]
         defEnder = '/%s' % deftype
         with open(os.path.join(TMPDIR, filename), 'r') as f:
             fileLines = [line for line in f]
+        newLines = TempFile.compressLines(self, newLines)
 
         # now finally we start creating the new file
         with open(os.path.join(TMPDIR, filename), 'w') as f:
@@ -1253,7 +1253,7 @@ class TempFile:
                         or line.find('%s=' % deftype)==0:
                         # aha! a predicament/dude to update in the global dict!
                         predname = line.split('=')[1].strip()
-                        updateList.append((predname, lineNo+2))
+                        updateList.append((predname, lineNo+1))
                     continue
 
                 # second if, only reached when reading definition we care about
