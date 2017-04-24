@@ -25,6 +25,8 @@ from tempfile import gettempdir
 from difflib import SequenceMatcher
 from string import ascii_letters
 from shutil import copytree, rmtree
+from contextlib import suppress
+from itertools import chain
 import os
 import atexit
 import random
@@ -35,7 +37,7 @@ prederrors = (
     "what the hell? i can't find predicament %s\ndid you modify it while the game was running?", # 1
     "wrong predicament found: %s",
     "what?? %s %s doesn't exist, \nor didn't exist when the game was started! >:(",
-    "in %s, %s %s was not ended before another %s started.",
+    "in %s,\n%s %s was not ended before another %s started.",
     "reached end of %s\nbefore finding %s\ndid you modify it while the game was running?", # 5
     "in %s, %s has a type of '%s'.\ni don't know what the hell that means.",
     "%s doesn't have an /predicament for %s",
@@ -45,7 +47,7 @@ prederrors = (
     "in %s:\n%s has %s after if.\nyou forgot to use a keyword, used an invalid keyword,\nor didn't include a condition after 'or' or 'and'.\nkeywords other than 'then' must precede an if.\nonly use 'then' after the final if condition.",
     "in %s, there is an unexpected '/if' in predicament %s",
     "in %s, reached end of %s before '/if'.\nconditionals must remain within originating predicament.",
-    "in %s, %s %s has a '%s' directive.\ni don't know what the hell that means.",
+    "in %s,\n%s %s has a '%s' directive.\ni don't know what the hell that means.",
     "%s could not be found while searching for %s\ndid you rename or delete it while the game was running?", # 15
     "", # 16
     "reached end of %s while looking for '/if'.\nthis is literally the end of the world.",
@@ -53,7 +55,7 @@ prederrors = (
     "%s refers to a '%s.wav'. there was an error accessing\nor playing this file. did you mistype the name?",
     "predicament %s tries to set %s to '%s'\nbut %s is supposed to be a number!", # 20
     "predicament %s tries to set '%s' to a value\nbut that variable could not be created!",
-    "[THIS SPACE FOR RENT] doesn't exist in %s! >:(\nwhat kind of game are you playing at?",
+    "predicament %s has this line:\n%s\nwhich changes the location of %s relatively, but %s hasn't been placed yet! >:(",
     "a movement or action directive in predicament %s contains this line:\n %s\nwhich does not have a -> in it.\nmovement and action must declare the label, then ->,\nthen the name of the predicament which the labelled movement\nor action leads to. for example:\n Leave the house. -> outside",
     "in %s\npredicament %s has the following condition:\n%s\nbut %s is not of a comparable type\nif it was intended to contain a word, it will always contain a word\nsetting it to a number will not allow you to perform comparisons",
     "in %s\npredicament %s has the following condition:\n%s\nthis is trying to perform a comparison on %s,\nbut %s is neither a number nor a variable containing a number.\nyou are comparing apples and oranges, and i'm allergic.",
@@ -80,7 +82,7 @@ prederrors = (
     "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
     "in %s,\n%s has an invalid map line:\n%s",
     # ^-- 45
-    "in %s,\npredicament %s fell off the map\nwhile searching for a spot near %s, %s",
+    "predicament %s fell off the map\nwhile searching for a spot near %s, %s",
     "in %s,\npredicament %s has this line:\n%s\nbut variable names must be 2 characters or greater\na 1-char name would get mixed up with the dudes!"
 )
 
@@ -96,7 +98,7 @@ class FuntimesError(Exception):
         print("i can't work under these conditions. i quit.\n")
         call('read -n1 -r -p "press any key to delete tmp files & exit\n" key',
             shell=True, executable='/bin/bash')
-        quit()
+        quit(code)
 
 def makeTmpDir():
     return os.path.join(gettempdir(), 'funtimesenginedata')
@@ -109,6 +111,31 @@ def overwriteTree(olddir, newdir):
             rmtree(newdir)
         else:
             break
+
+def emptyCoordClosestTo(x, y, xdirection, ydirection, predmap, name=''):
+    '''args: int x, int y, str xdirection, str ydirection, list of str map
+    Finds a free spot on a provided list of maplines, using x- & y-direction to
+    determine whether to move + or - away from x,y if x,y is not empty on map'''
+    while True:
+        try:
+            row = predmap[y]
+            try:
+                if row[x] == ' ':
+                    break
+                if xdirection == '+':
+                    x += 1
+                else:
+                    x -= 1
+            except IndexError:
+                x=1
+                if ydirection == '+':
+                    y += 1
+                else:
+                    y -= 1
+        except IndexError:
+            raise FuntimesError(46, name, x, y)
+    # found a suitable location for the dude!
+    return x, y
 
 @atexit.register
 def deleteTmpFiles():
@@ -123,6 +150,23 @@ def getNonBlankLine(fp):
             raise FuntimesError(17, fp.name)
         line = line.strip()
     return line
+
+def keyOfLine(line, splitter):
+    key = line
+    with suppress(ValueError):
+        key, value = line.split(splitter, 1)
+    return key.strip()
+
+def multiSplit(line, *args):
+    for splitter in args:
+        try:
+            key, value = line.split(splitter)
+        except ValueError:
+            continue
+        return key, value
+    else:
+        # TODO FIX ERROR MSG
+        raise FuntimesError(26, fp.name, self.name, line)
 
 def findVariables(text):
     '''

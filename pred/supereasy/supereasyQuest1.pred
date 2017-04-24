@@ -6,17 +6,18 @@ predicament = supereasyQuest1entry
     function = supereasyProbe
     sound = ~/entry.wav
     entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
-    if Y is not 3, 3
-        and
-    if predname is supereasyQuest1entry
-        then
+    if Y is 5, 3 ->
         left =
             Y = 3, 3
         /left
     /if
-    if predname is not supereasyQuest1entry
-        then
+    if Y is not 5, 3 ->
         left = seQ1-hall1
+    /if
+    if editedFile is not 1 ->
+        up =
+            set editedFile to 1
+        /up
     /if
 /predicament
 

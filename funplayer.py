@@ -34,6 +34,7 @@
 #       and scaling the textwindow to fill more space
 # TODO: ctrl+up enlarges text
 # TODO: sum the button label lengths as we go, so the buttons can linebreak if needed
+# EVENTUALLY: make something like ssass using pyglet for a different screen?
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
 import funtimes
@@ -230,7 +231,7 @@ def main():
 def goto(*args):
     '''based on a batch file therefore needs goto ;)
     actually we need this to catch widgets passed from GTK
-    so they don't interfere with my nice pure play() function
+    so they don't interfere with my nice pure play() function.
     the last argument is the new predname'''
     newpred = args[-1]
     play(newpred)

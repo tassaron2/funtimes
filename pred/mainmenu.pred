@@ -13,11 +13,11 @@ predicament = mainmenu
         text = You are %playerName%. You recently decided to turn to a life of cybercrime. It's a dangerous job, but the opportunity to make a lot of dough is too tempting to pass up. You love dough.
         text = To make dough, accept a job in the Jobs menu.
     /if
-    set seenIntro = 1
     if seenIntro is 1
         thender
         text = Day %playerDay% on your journey.
     /if
+    set seenIntro = 1
 
     action = Self -> selfmenu
     action = Jobs -> jobsmenu
@@ -86,7 +86,7 @@ predicament = quit
 predicament = completescreen
     text = As compensation you received $%reward%.
     add %reward% to playerMoney
-    set %currentquest% to 10
+    #set %currentquest% to 10
     add 1 to playerDay
     action = OK -> quit
 /predicament
