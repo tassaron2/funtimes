@@ -192,8 +192,6 @@ class Parser:
         self.filename, lineNo, virtualLines = getFilenameAndLine(
             mydir, filetype, self.name)
 
-        _virtualLines = virtualLines[:]
-
         with open(os.path.join(mydir, self.filename), 'r') as fp:
             # find line in file where this predicament begins...
             busy = findStartPoint(fp, lineNo, whatIAm, self.name)
@@ -213,9 +211,6 @@ class Parser:
 
                 if not doneReadingFile:
                     line = getNonBlankLine(fp)
-                elif doneReadingFile and _virtualLines:
-                    # take a line off the virtualLines list
-                    line = _virtualLines.pop(0)
                 else:
                     # finished reading!
                     busy = False
@@ -282,7 +277,7 @@ class Parser:
                     self._parse_text(value, True, readingTick)
                     continue
                 elif key == 'action':
-                    self._parse_action(value, line, readingTick)
+                    self._parse_action(fp, value, line, readingTick)
                     continue
                 elif key in ('function', 'parent', 'embed') and isPredicament:
                     self._parse_function(value)
@@ -308,9 +303,7 @@ class Parser:
                 else:
                     raise FuntimesError(14, self.filename,
                         whatIAm, self.name, key)
-
         cleanUp(isPredicament, busy)
-        return True
 
     def _parse_text(self, value, isEntry, readingTick):
         # remove only the first space if any
@@ -328,13 +321,16 @@ class Parser:
             # a regular dude
             self.addEvent(readingTick, 'text', value)
 
-    def _parse_action(self, value, line, readingTick=-1):
+    def _parse_action(self, fp, value, line, readingTick=-1):
         try:
-            action, goto = value.split(SECONDARY_SPLITTER)
+            action, goto = value.split(SECONDARY_SPLITTER, 1)
         except ValueError:
             raise FuntimesError(23, self.name, line)
         action = action.strip()
         goto = goto.strip()
+        if not goto:
+            # read until '/action' if there's no destination for this
+            goto = VirtualPredicament.register(self.name, fp, '/action')
         if readingTick == -1:
             # predicament
             self.actionLabel.append(action)
@@ -358,7 +354,7 @@ class Parser:
             return None, newpred
 
         try:
-            label, goto = value.split(SECONDARY_SPLITTER)
+            label, goto = value.split(SECONDARY_SPLITTER, 1)
         except ValueError:
             if value.strip()=='':
                 label, goto = doCode()
@@ -422,11 +418,9 @@ class Parser:
                 oldCoord = self.dudeLocations[dudesymbol][1]
 
             try:
-                if newCoord.startswith('+'):
-                    newCoord = oldCoord + int(newCoord[1:])
-                elif newCoord.startswith('-'):
+                if newCoord.startswith('-'):
                     direction = '-'
-                    newCoord = oldCoord - int(newCoord[1:])
+                newCoord = oldCoord + eval(newCoord)
             except ValueError:
                 raise FuntimesError(5665432)
             return newCoord
@@ -439,7 +433,7 @@ class Parser:
                     return self.dudeLocations[dudesymbol][0]
                 elif XorY == 'y' and coord == '~':
                     return self.dudeLocations[dudesymbol][1]
-                raise FuntimesError(729268777456789)
+                raise FuntimesError(719)
 
         try:
             if x[:1] not in ('+','-'):
@@ -1193,6 +1187,9 @@ class TempFile:
         dudeLocationsToWorryAbout = [l.strip()[:1] for l in topLines\
             if len(keyOfLine(l, PRIMARY_SPLITTER)) == 1]
         finished = False
+        readingBlock = False
+        blockStarters = ['left','right','up','down','action']
+        blockEnders = ['/%s' % starter for starter in blockStarters]
         for lineNo, line in enumerate(fileLines[:]):
             if line.find(defEnder) == 0:
                 finished = True
@@ -1201,15 +1198,22 @@ class TempFile:
             try:
                 thisKey, thisValue = line.split(PRIMARY_SPLITTER, 1)
                 thisKey = thisKey.strip()
+                if thisKey in blockStarters:
+                    readingBlock = True
+                    continue
                 if thisKey in dudeLocationsToWorryAbout:
-                    fileLines.remove(line)
-                elif thisKey == 'dude':
+                    if not readingBlock:
+                        fileLines.remove(line)
+                if thisKey == 'dude':
                     if keyOfLine(thisValue.strip(), SECONDARY_SPLITTER) \
                         in dudeLocationsToWorryAbout:
                             fileLines.remove(line)
                             if line not in topLines:
                                 topLines.insert(0, line)
             except ValueError:
+                for ender in blockEnders:
+                    if line.find(ender) == 0:
+                        readingBlock = False
                 continue
 
         # now finally we start creating the new file
@@ -1262,9 +1266,6 @@ class TempFile:
                     predicaments[value] = (oldEntry[0], lineNo, oldEntry[2])
 
 
-
-
-
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
 # FUNCTIONS
@@ -1305,9 +1306,6 @@ def findAllDefinitions(dir_, filetype):
                         predicaments[name] = (os.path.join(dirpath, filename),
                             lineNo,[])
     return predicaments
-
-def updateGlobalDictByFilename(deftype, defname, filename):
-    pass
 
 def makeGlobalDicts():
     global predicaments

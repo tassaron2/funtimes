@@ -6,11 +6,9 @@ predicament = supereasyQuest1entry
     function = supereasyProbe
     sound = ~/entry.wav
     entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
-    if Y is 5, 3 ->
-        left =
-            Y = 3, 3
-        /left
-    /if
+    action = Tile left ->
+        Y = -1, ~
+    /action
     if Y is not 5, 3 ->
         left = seQ1-hall1
     /if
