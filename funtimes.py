@@ -26,7 +26,7 @@ Does nothing to /src, just references it in replaceTilde() for game resources.
 # <http://www.gnu.org/licenses/>
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
-# last modified 2017/04/12
+# last modified 2017/04/30
 # resurrected by tassaron 2017/03/23
 # from code by ninedotnine & tassaron 2013/05/24-2013/06/30
 # inspired by a batch file game made in 2008
@@ -42,7 +42,7 @@ SECONDARY_SPLITTER = '->'
 # directory paths to data
 PREDDIR = os.path.join(MYPATH, 'pred')
 DUDEDIR = PREDDIR
-TMPDIR  = makeTmpDir()
+TMPDIR  = os.path.join(gettempdir(), 'funtimesenginedata')
 
 # dicts of filenames & lineNums for game object definitions,
 predicaments = {}  # created by makeGlobalDicts()
@@ -1127,6 +1127,7 @@ class TempFile:
             overwriteTree(DUDEDIR, TMPDIR)
         PREDDIR = TMPDIR
         DUDEDIR = TMPDIR
+        atexit.register(TempFile.deleteTmpFiles)
 
     @staticmethod
     def resetTempFiles():
@@ -1134,6 +1135,10 @@ class TempFile:
         if DUDEDIR != PREDDIR:
             overwriteTree(TempFile.originDudeDir, TMPDIR)
         makeGlobalDicts()
+
+    @staticmethod
+    def deleteTmpFiles():
+        rmtree(TMPDIR)
 
     @staticmethod
     def compressLines(self, virtualLines):
@@ -1315,14 +1320,26 @@ def makeGlobalDicts():
 
 def printGlobalDict(*args):
     def printDict(dictionary):
-        print("{:<30}".format('TITLE') + "| LINE | FILE")
-        for key, value in dictionary.items():
-            print("{:<30}".format(key) + "|",
-                "{:<5}".format(str(value[1])) + "|",
-                value[0].replace(MYPATH,''))
-            if value[2]:
-                for line in value[2]:
-                    print("{:>28}".format(line)+'  |      |')
+        if not quiet:
+            print("{:<30}".format('TITLE') + "| LINE | FILE")
+            for key, value in dictionary.items():
+                print("{:<30}".format(key) + "|",
+                    "{:<5}".format(str(value[1])) + "|",
+                    value[0].replace(MYPATH,''))
+                if value[2]:
+                    for line in value[2]:
+                        print("{:>28}".format(line)+'  |      |')
+        else:
+            shown = set()
+            for value in dictionary.values():
+                if value[0] not in shown:
+                    print(value[0])
+                    shown.add(value[0])
+
+
+    quiet = False
+    if len(args) > 1:
+        quiet = args[1]
 
     try:
         input_ = args[0]
@@ -1333,27 +1350,47 @@ def printGlobalDict(*args):
     if type(input_) is list:
         for dictionary in input_:
             printDict(dictionary)
-            print('~=~=~=~')
+            if not quiet:
+                print('~=~=~=~')
     elif type(input_) is dict:
         printDict(args[0])
 
 if __name__ == '__main__':
+    def showHelp():
+        print("usage: funtimes.py [--paths] [--show-all]\n")
+        print("--show-all      list all data in the global dicts")
+        print("--paths         list unique filenames to pred/dude definitions")
+        print("--help          print this message and exit")
+        quit()
+    import sys
     makeGlobalDicts()
-    print('~=~=~=~ PREDICAMENTS ~=~=~=~')
-    print("number of predicaments:", len(predicaments))
-    print("contents of PREDDIR (", PREDDIR, "): \n",
-        [line.replace(MYPATH,'') for line in os.listdir(PREDDIR)])
-    print('~=~=~=~   ~=~=~=~')
-    printGlobalDict(predicaments)
-    print('~=~=~=~ DUDES ~=~=~=~')
-    print("number of dudes:", len(dudes))
-    if DUDEDIR == PREDDIR:
-        print('DUDEDIR has same contents as PREDDIR')
+    cmdArgs = sys.argv[1:]
+    if cmdArgs:
+        if '--paths' in cmdArgs:
+            quiet = True
+        elif '--show-all' in cmdArgs:
+            quiet = False
+        else:
+            showHelp()
     else:
-        print("contents of DUDEDIR (", DUDEDIR, "): \n",
-            [line.replace(MYPATH,'') for line in os.listdir(DUDEDIR)])
-    print('~=~=~=~   ~=~=~=~')
-    printGlobalDict(dudes)
+        showHelp()
+    if not quiet:
+        print('~=~=~=~ PREDICAMENTS ~=~=~=~')
+        print("number of predicaments:", len(predicaments))
+        print("contents of PREDDIR (", PREDDIR, "): \n",
+            [line.replace(MYPATH,'') for line in os.listdir(PREDDIR)])
+        print('~=~=~=~   ~=~=~=~')
+    printGlobalDict(predicaments, quiet)
+    if not quiet:
+        print('~=~=~=~ DUDES ~=~=~=~')
+        print("number of dudes:", len(dudes))
+        if DUDEDIR == PREDDIR:
+            print('DUDEDIR has same contents as PREDDIR')
+        else:
+            print("contents of DUDEDIR (", DUDEDIR, "): \n",
+                [line.replace(MYPATH,'') for line in os.listdir(DUDEDIR)])
+        print('~=~=~=~   ~=~=~=~')
+    printGlobalDict(dudes, quiet)
 else:
     TempFile.init()
     makeGlobalDicts()

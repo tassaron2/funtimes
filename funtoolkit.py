@@ -100,9 +100,6 @@ class FuntimesError(Exception):
             shell=True, executable='/bin/bash')
         quit(code)
 
-def makeTmpDir():
-    return os.path.join(gettempdir(), 'funtimesenginedata')
-
 def overwriteTree(olddir, newdir):
     while True:
         try:
@@ -136,10 +133,6 @@ def emptyCoordClosestTo(x, y, xdirection, ydirection, predmap, name=''):
             raise FuntimesError(46, name, x, y)
     # found a suitable location for the dude!
     return x, y
-
-@atexit.register
-def deleteTmpFiles():
-    rmtree(makeTmpDir())
 
 def getNonBlankLine(fp):
     line = ''
