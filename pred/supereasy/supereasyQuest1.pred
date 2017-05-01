@@ -2,20 +2,25 @@ version = 1
 predicament = supereasyQuest1entry
     map = auto
     dude = Y -> you
-    Y = 5,3
+    Y = 5,4
     function = supereasyProbe
     sound = ~/entry.wav
     entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
-    action = Tile left ->
-        Y = -1, ~
-    /action
-    if Y is not 5, 3 ->
+
+    if Y is not 1, 4 ->
+        left =
+            Y = -1, ~
+        /left
+    /if
+    # an else statement would be handy here
+    if Y is 1, 4 ->
         left = seQ1-hall1
     /if
-    if editedFile is not 1 ->
-        up =
-            set editedFile to 1
-        /up
+
+    if Y is not 7,~ ->
+        right = disable map
+            Y = +1, ~
+        /right
     /if
 /predicament
 

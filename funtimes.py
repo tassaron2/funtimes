@@ -117,7 +117,10 @@ class Parser:
                 raise FuntimesError(7, self.filename, self.name)
             # run any functions
             for func in self._on_parser_finish:
-                func()
+                try:
+                    func()
+                except TypeError:
+                    raise FuntimesError(666)
             if self.isFunction:
                 self._on_parser_finish = []
             if isPredicament:
@@ -340,6 +343,7 @@ class Parser:
             self.addEvent(readingTick, 'action', '%s=%s' % (action, goto))
 
     def _parse_arrow(self, fp, key, value, readingTick=-1):
+        '''args: file object, 'up'/'down'/etc, goto predname, applicable tick'''
         def sendToPredicament(label, goto):
             for i, d in enumerate(('up', 'down', 'left', 'right')):
                 if key == d:
@@ -349,15 +353,28 @@ class Parser:
                     self.arrowGoto[i] = goto.strip()
                     continue
 
-        def doCode():
+        def mapOverwriter(direction):
+            def mapDrawer():
+                if direction == 'right':
+                    for i in range(3, 6):
+                        self.predmap[i] = '%s#' % self.predmap[i][:-1]
+            return mapDrawer
+
+        def doCode(keyword):
             newpred = VirtualPredicament.register(self.name, fp, '/%s' % key)
+            if keyword:
+                if keyword == 'disable map':
+                    obj = mapOverwriter(key)
+                    self._on_parser_finish.append(obj)
             return None, newpred
 
+        magicKeywords = [ 'disable map' ]
+        value = value.strip()
         try:
             label, goto = value.split(SECONDARY_SPLITTER, 1)
         except ValueError:
-            if value.strip()=='':
-                label, goto = doCode()
+            if not value or value in magicKeywords:
+                label, goto = doCode(value)
             else:
                 label, goto = None, value
         sendToPredicament(label, goto)
@@ -573,7 +590,17 @@ class Parser:
 
             if len(key) == 1:
                 isDude = True
-                value = eval(value.strip())
+                try:
+                    value = eval(value.strip())
+                except SyntaxError:
+                    if '~' not in value:
+                        raise FuntimesError(294)
+                    else:
+                        value0, value1 = value.split(',')
+                        if value0.strip() == '~':
+                            value = (self.dudeLocations, int(value1))
+                        else:
+                            value = (int(value0), self.dudeLocations[key][1])
             else:
                 isDude = False
                 value = replaceVariables(value)
@@ -1214,7 +1241,7 @@ class TempFile:
                         in dudeLocationsToWorryAbout:
                             fileLines.remove(line)
                             if line not in topLines:
-                                topLines.insert(0, line)
+                                topLines.insert(0, line.strip())
             except ValueError:
                 for ender in blockEnders:
                     if line.find(ender) == 0:
