@@ -26,18 +26,27 @@ Does nothing to /src, just references it in replaceTilde() for game resources.
 # <http://www.gnu.org/licenses/>
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
-# last modified 2017/04/30
+# last modified 2017/05/06
 # resurrected by tassaron 2017/03/23
 # from code by ninedotnine & tassaron 2013/05/24-2013/06/30
 # inspired by a batch file game made in 2008
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
+# TODO: different fatality levels for FuntimesError & option to ignore minor
+#       make FuntimesError take filename, predname, and line for every error
+# TODO: fix pred functions not applying their mapnames for some weird reason
+# TODO: goto and functions can run the same code so they could be same thing?
+# TODO: markup =
+# TODO: make certain actions take more ticks to execute
+# TODO: capturing key input
+# TODO: track when virtualpreds aren't needed anymore so they can be deleted
 
 from funtoolkit import *
 
 # syntax
 PRIMARY_SPLITTER = '='
 SECONDARY_SPLITTER = '->'
+DEFAULT_MAP_WALL = '>>>>>>>>>'  # determines automap dimensions
 
 # directory paths to data
 PREDDIR = os.path.join(MYPATH, 'pred')
@@ -47,7 +56,7 @@ TMPDIR  = os.path.join(gettempdir(), 'funtimesenginedata')
 # dicts of filenames & lineNums for game object definitions,
 predicaments = {}  # created by makeGlobalDicts()
 dudes = {}         # created by makeGlobalDicts()
-virtualpreds = {}  # created by VirtualPredicament.register()
+virtualpreds = {}  # created by ", filled in by VirtualPredicament.register()
 
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 #
@@ -94,7 +103,10 @@ class Parser:
                     # this is the first predicament so whatever
                     oldpredname = str(self.name)
                 if not self.goto:
-                    Predicament.variables['predname'] = self.name
+                    if self.name in virtualpreds:
+                        Predicament.variables['predname'] = virtualpreds[self.name][1]
+                    else:
+                        Predicament.variables['predname'] = self.name
             return oldpredname
 
         def whoAmI(filetype):
@@ -354,10 +366,13 @@ class Parser:
                     continue
 
         def mapOverwriter(direction):
-            def mapDrawer():
-                if direction == 'right':
+            if direction == 'right':
+                def mapDrawer():
                     for i in range(3, 6):
                         self.predmap[i] = '%s#' % self.predmap[i][:-1]
+            elif direction == 'down':
+                def mapDrawer():
+                    self.predmap[-1] = DEFAULT_MAP_WALL
             return mapDrawer
 
         def doCode(keyword):
@@ -896,7 +911,7 @@ class Predicament(Parser):
             self._dudes.append(thisDudesName.strip())
             self.dudeSymbols.append(thisDudesSymbol.strip())
         else:
-            raise FuntimesError(44, self.filename, self.name)
+            raise FuntimesError(44, self.filename, self.name, thisDudesSymbol.strip())
 
     def _parse_map(self, fp, line, value):
         def readMap(fp, line):
@@ -946,7 +961,7 @@ class Predicament(Parser):
             if hasUp:
                 maplist.append('>>>   >>>')
             else:
-                maplist.append('>>>>>>>>>')
+                maplist.append(DEFAULT_MAP_WALL)
             maplist.append('>       >')
             maplist.append('>       >')
             if hasLeft and not hasRight:
@@ -964,7 +979,7 @@ class Predicament(Parser):
             if hasDown:
                 maplist.append('>>>   >>>')
             else:
-                maplist.append('>>>>>>>>>')
+                maplist.append(DEFAULT_MAP_WALL)
             self.predmap = maplist
 
         # read lines until /map if there is no value after 'map='
@@ -1120,7 +1135,12 @@ class Dude(Parser):
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=#
 
 class VirtualPredicament:
-    '''a predicament created by the engine'''
+    '''A predicament created by the engine.
+    The virtualpreds global dict contains tuples of:
+    new unique predname : (parent's predname, original non-virtual predname)
+    thus virtual preds spawned by a real pred will have both values equal
+    virtual preds spawned by other virtual preds will have different values
+    '''
     @staticmethod
     def register(oldpredname, fp, ender):
         '''fp is file object seeked to the right position to read virtuallines
@@ -1138,7 +1158,11 @@ class VirtualPredicament:
         newpredname = Predicament.uniqueName()
         filename, lineNo, extralines = predicaments[oldpredname]
         predicaments[newpredname] = (filename, lineNo, newlines)
-        virtualpreds[newpredname] = oldpredname
+        originalpredname = oldpredname
+        # dig through each parent's entry until we get a non-virtual one
+        while originalpredname in virtualpreds:
+            originalpredname = virtualpreds[originalpredname][0]
+        virtualpreds[newpredname] = (oldpredname, originalpredname)
         return newpredname
 
 class TempFile:
@@ -1218,14 +1242,17 @@ class TempFile:
         # thus the topLines will provide the 1 canonical location for each dude
         dudeLocationsToWorryAbout = [l.strip()[:1] for l in topLines\
             if len(keyOfLine(l, PRIMARY_SPLITTER)) == 1]
+        #print('dudes of', self.name,':', dudeLocationsToWorryAbout)
         finished = False
         readingBlock = False
         blockStarters = ['left','right','up','down','action']
         blockEnders = ['/%s' % starter for starter in blockStarters]
         for lineNo, line in enumerate(fileLines[:]):
+            if lineNo < targetLineNo:
+                continue
             if line.find(defEnder) == 0:
                 finished = True
-            if finished or lineNo < targetLineNo:
+            if finished:
                 continue
             try:
                 thisKey, thisValue = line.split(PRIMARY_SPLITTER, 1)
@@ -1235,11 +1262,26 @@ class TempFile:
                     continue
                 if thisKey in dudeLocationsToWorryAbout:
                     if not readingBlock:
+                        # FIXME: PROBABLE SOURCE OF BUGS...
                         fileLines.remove(line)
                 if thisKey == 'dude':
                     if keyOfLine(thisValue.strip(), SECONDARY_SPLITTER) \
                         in dudeLocationsToWorryAbout:
-                            fileLines.remove(line)
+                            newFileLines = []
+                            # line_ is what we iterate thru in this context,
+                            # line is the line we want to remove sometimes...
+                            finished_ = False
+                            for lineNo_, line_ in enumerate(fileLines):
+                                if lineNo_ < targetLineNo:
+                                    newFileLines.append(line_)
+                                else:
+                                    if line_.find(defEnder) == 0:
+                                        finished_ = True
+                                    if not finished_ and line_ != line:
+                                        newFileLines.append(line_)
+                                    if finished_:
+                                        newFileLines.append(line_)
+                            fileLines = newFileLines
                             if line not in topLines:
                                 topLines.insert(0, line.strip())
             except ValueError:
@@ -1275,7 +1317,6 @@ class TempFile:
                 elif line.find(defEnder) == 0:
                     # bottom of the def we care about!
                     finishedWork = True
-                    updateList = []
                     for line in bottomLines:
                         f.write('%s\n' % line)
                     f.seek(f.tell())
@@ -1285,8 +1326,10 @@ class TempFile:
             lineNo = 0
             for line in f:
                 lineNo += 1
+                '''
                 if lineNo < targetLineNo:
                     continue
+                '''
                 try:
                     key, value = line.split(PRIMARY_SPLITTER, 1)
                 except ValueError:
@@ -1342,8 +1385,10 @@ def findAllDefinitions(dir_, filetype):
 def makeGlobalDicts():
     global predicaments
     global dudes
+    global virtualpreds
     predicaments = findAllDefinitions(PREDDIR, 'pred')
     dudes = findAllDefinitions(DUDEDIR, 'dude')
+    virtualpreds = {}
 
 def printGlobalDict(*args):
     def printDict(dictionary):

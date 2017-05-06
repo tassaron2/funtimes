@@ -27,7 +27,7 @@ predicament = supereasyQuest1entry
 predicament = seQ1-hall1
     map = auto
     dude = Y -> you
-    Y = 5,3
+    Y = 5,4
     set saidmessage=0
     function = supereasyProbe
     right = supereasyQuest1entry
@@ -40,11 +40,41 @@ predicament = seQ1-tjunc1
     entry = %playerName%: Ah crap.
     dude = P -> supereasyProbe
     dude = Y -> you
-    Y = 3,3
+    Y = 3,4
     P = 5,3
-    right = seQ1-hall1
-    left = seQ1-endright1
-    up = seQ1-vend1
+
+    if Y is not 7,~ ->
+        right =
+            Y = +1,~
+        /right
+    /if
+    if Y is 7,~ ->
+        right = seQ1-hall1
+    /if
+
+    if Y is not 1,~ ->
+        left =
+            Y = -1,~
+        /left
+    /if
+    if Y is 1,~ ->
+        left = seQ1-endright1
+    /if
+
+    if Y is not ~,2 ->
+        up =
+            Y = ~,-1
+        /up
+    /if
+    if Y is ~,2 ->
+        up = seQ1-vend1
+    /if
+
+    if Y is not ~,5      ->
+        down = disable map
+            Y = ~,+1
+        /down
+    /if
 /predicament
 
 predicament = seQ1-endright1

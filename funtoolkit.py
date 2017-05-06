@@ -79,7 +79,7 @@ prederrors = (
     "in %s\npredicament %s is of 'goto' type\nbut it has no destination after '->'",
     "in %s\npredicament %s has this line:\n%s\nwhich is a broken dude. that's not weet.",
     "in %s\na dude named %s\nwants in on tick '%s'\nbut the tick number didn't bring its id",
-    "in %s\n%s has multiple dudes with the same character\nthat's bound to cause trouble",
+    "in %s\n%s has multiple dudes with the same character (%s)\nthat's bound to cause trouble",
     "in %s,\n%s has an invalid map line:\n%s",
     # ^-- 45
     "predicament %s fell off the map\nwhile searching for a spot near %s, %s",
