@@ -127,10 +127,13 @@ class Parser:
             elif busy:
                 # should always hit error 4 before this, so it may be redundant
                 raise FuntimesError(7, self.filename, self.name)
-            if self.isFunction:
+            if not self.isFunction:
+                '''
                 self.isFunction._on_parser_finish = \
                     list(chain(self.isFunction._on_parser_finish, self._on_parser_finish))
+                self._on_parser_finish = []
             else:
+                '''
                 # run any functions
                 for func in self._on_parser_finish:
                     try:
@@ -372,7 +375,7 @@ class Parser:
             if direction == 'left':
                 def mapDrawer():
                     for i in range(3, 6):
-                        self.predmap[i] = '#%s' % self.predmap[i][:1]
+                        self.predmap[i] = '#%s' % self.predmap[i][1:]
             elif direction == 'right':
                 def mapDrawer():
                     for i in range(3, 6):

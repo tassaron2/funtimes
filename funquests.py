@@ -140,21 +140,23 @@ def writePredicament(predobj):
             blockStarter = '        %s =' % direction
         else:
             blockStarter = '        %s = disable map' % direction
+
+        #negated
         if direction == 'left':
             write(noLeftExpr)
             write(blockStarter)
             write('            Y = -1,~')
         elif direction == 'right':
             write(noRightExpr)
-            write('        %s =' % direction)
+            write(blockStarter)
             write('            Y = +1,~')
         elif direction == 'up':
             write(noUpExpr)
-            write('        %s =' % direction)
+            write(blockStarter)
             write('            Y = ~,-1')
         elif direction == 'down':
             write(noDownExpr)
-            write('        %s =' % direction)
+            write(blockStarter)
             write('            Y = ~,+1')
         write('        /%s' % direction)
         write('    /if')
@@ -176,7 +178,7 @@ def writePredicament(predobj):
     else:
         write('    Y = 3,3')
 
-    write('    text = %predname%')
+    write('    text = %predname% - %Y%')
     write('    function = supereasyProbe')
 
     noMapDoors = [ 'left', 'right', 'up', 'down']
