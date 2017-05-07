@@ -127,16 +127,20 @@ class Parser:
             elif busy:
                 # should always hit error 4 before this, so it may be redundant
                 raise FuntimesError(7, self.filename, self.name)
-            # run any functions
-            for func in self._on_parser_finish:
-                try:
-                    func()
-                except TypeError:
-                    raise FuntimesError(666)
             if self.isFunction:
-                self._on_parser_finish = []
+                self.isFunction._on_parser_finish = \
+                    list(chain(self.isFunction._on_parser_finish, self._on_parser_finish))
+            else:
+                # run any functions
+                for func in self._on_parser_finish:
+                    try:
+                        func()
+                    except TypeError:
+                        raise FuntimesError(666)
             if isPredicament:
                 addDudesToMap()
+                for symbol, tuple_ in self.dudeLocations.items():
+                    Predicament.variables[symbol] = tuple_
 
         def getFilenameAndLine(dir_, filetype, name):
             # get the info we have in the global dicts...
@@ -154,7 +158,6 @@ class Parser:
                 open(os.path.join(dir_, filename), 'r')
             except:
                 raise FuntimesError(15, filename, name)
-
             return filename, lineNo, virtualLines
 
         def findStartPoint(fp, lineNo, lookingFor, name):
@@ -189,17 +192,17 @@ class Parser:
             if mapLength:
                 for symbol in self.dudeSymbols:
                     if symbol not in self.dudeLocations:
-                            while True:
-                                # picks a random index of a string across a random row
-                                randomY = random.randint(1, mapLength-1)
-                                randomRowLine = self.predmap[randomY]
-                                randomX = random.randint(1, len(randomRowLine)-1)
-                                # make sure it's a free spot
-                                if randomRowLine[randomX] != ' ':
-                                    continue
-                                else:
-                                    self.dudeLocations[symbol] = (randomX, randomY)
-                                    break
+                        while True:
+                            # picks a random index of a string across a random row
+                            randomY = random.randint(1, mapLength-1)
+                            randomRowLine = self.predmap[randomY]
+                            randomX = random.randint(1, len(randomRowLine)-1)
+                            # make sure it's a free spot
+                            if randomRowLine[randomX] != ' ':
+                                continue
+                            else:
+                                self.dudeLocations[symbol] = (randomX, randomY)
+                                break
 
         whatIAm, isPredicament, isDude = whoAmI(filetype)
 
@@ -366,21 +369,28 @@ class Parser:
                     continue
 
         def mapOverwriter(direction):
-            if direction == 'right':
+            if direction == 'left':
                 def mapDrawer():
                     for i in range(3, 6):
-                        self.predmap[i] = '%s#' % self.predmap[i][:-1]
-            elif direction == 'down':
+                        self.predmap[i] = '#%s' % self.predmap[i][:1]
+            elif direction == 'right':
                 def mapDrawer():
-                    self.predmap[-1] = DEFAULT_MAP_WALL
+                    for i in range(3, 6):
+                        try:
+                            self.predmap[i] = '%s#' % self.predmap[i][:-1]
+                        except IndexError:
+                            print(self.name, " broke")
+            elif direction in ('up', 'down'):
+                magicnumber = (direction == 'down') * -1
+                def mapDrawer():
+                    self.predmap[magicnumber] = DEFAULT_MAP_WALL
             return mapDrawer
 
         def doCode(keyword):
             newpred = VirtualPredicament.register(self.name, fp, '/%s' % key)
             if keyword:
                 if keyword == 'disable map':
-                    obj = mapOverwriter(key)
-                    self._on_parser_finish.append(obj)
+                    self._on_parser_finish.append( mapOverwriter(key) )
             return None, newpred
 
         magicKeywords = [ 'disable map' ]
@@ -604,18 +614,31 @@ class Parser:
                 negate = True
 
             if len(key) == 1:
+                # use local variables first, environment variables second
+                globalDude = False
+                if key not in self.dudeLocations:
+                    if key in Predicament.variables:
+                        globalDude = True
+                    else:
+                        # nonexistent dude
+                        raise FuntimesError(48, self.filename, self.name, line, key)
                 isDude = True
                 try:
                     value = eval(value.strip())
                 except SyntaxError:
                     if '~' not in value:
+                        # non-numeric input
                         raise FuntimesError(294)
                     else:
+                        if globalDude:
+                            oldLocation = Predicament.variables[key]
+                        else:
+                            oldLocation = self.dudeLocations[key]
                         value0, value1 = value.split(',')
                         if value0.strip() == '~':
-                            value = (self.dudeLocations, int(value1))
+                            value = (oldLocation[0], int(value1))
                         else:
-                            value = (int(value0), self.dudeLocations[key][1])
+                            value = (int(value0), oldLocation[1])
             else:
                 isDude = False
                 value = replaceVariables(value)
@@ -625,7 +648,7 @@ class Parser:
 
             # wtf
             if isDude:
-                conditionIsTrue = ( self.dudeLocations[key] == value )
+                conditionIsTrue = ( oldLocation == value )
 
             # if the var doesn't exist, freak the hell out
             elif key not in Predicament.variables.keys():
@@ -777,7 +800,7 @@ class Predicament(Parser):
         # gotta have more comments than code
         Predicament.numPredicaments += 1
 
-        self.isFunction = False
+        self.isFunction = None
         with suppress(KeyError):
             self.isFunction = kwargs['isFunction']
 
@@ -845,7 +868,7 @@ class Predicament(Parser):
         if value not in predicaments:
             raise FuntimesError(999)
         else:
-            newfunction = Predicament(value,isFunction=True)
+            newfunction = Predicament(value,isFunction=self)
         for thing in newfunction.__dict__:
             forbidden = ('name', 'sound','inputtype','filename','result')
             if thing in forbidden:
@@ -885,6 +908,7 @@ class Predicament(Parser):
         if key in str(self.predmap):
             moveMapTile(key, x, y)
         self.dudeLocations[key] = (x, y)
+        Predicament.variables[key] = (x, y)
 
     def _parse_type(self,value,oldpredname):
         # TODO: type = textinput -> result
@@ -993,10 +1017,6 @@ class Predicament(Parser):
         else:
             raise FuntimesError(45, self.filename, self.name, line)
 
-    # this isn't used anywhere, but handy for debugging
-    def __str__(self):
-        return '< Predicament %s: %s >' % (self.name, self._text)
-
     @property
     def actions(self):
         return ((replaceVariables(label), replaceVariables(goto))\
@@ -1084,7 +1104,7 @@ class Dude(Parser):
 
         # things that don't matter
         self.sound = None
-        self.isFunction = False
+        self.isFunction = None
 
         if self.name:
             # read dude file
@@ -1223,6 +1243,23 @@ class TempFile:
 
     @staticmethod
     def writeLines(self, newLines, deftype='predicament'):
+        def removeFromFileLines(fileLines, line):
+            newFileLines = []
+            # line_ is what we iterate thru in this context,
+            # line is the line we want to remove sometimes...
+            finished_ = False
+            for lineNo_, line_ in enumerate(fileLines):
+                if lineNo_ < targetLineNo:
+                    newFileLines.append(line_)
+                else:
+                    if line_.find(defEnder) == 0:
+                        finished_ = True
+                    if not finished_ and line_ != line:
+                        newFileLines.append(line_)
+                    if finished_:
+                        newFileLines.append(line_)
+            return newFileLines
+
         global predicaments; global dudes
         # parse args
         if deftype == 'predicament':
@@ -1260,28 +1297,14 @@ class TempFile:
                 if thisKey in blockStarters:
                     readingBlock = True
                     continue
+
                 if thisKey in dudeLocationsToWorryAbout:
                     if not readingBlock:
-                        # FIXME: PROBABLE SOURCE OF BUGS...
-                        fileLines.remove(line)
+                        fileLines = removeFromFileLines(fileLines, line)
                 if thisKey == 'dude':
                     if keyOfLine(thisValue.strip(), SECONDARY_SPLITTER) \
                         in dudeLocationsToWorryAbout:
-                            newFileLines = []
-                            # line_ is what we iterate thru in this context,
-                            # line is the line we want to remove sometimes...
-                            finished_ = False
-                            for lineNo_, line_ in enumerate(fileLines):
-                                if lineNo_ < targetLineNo:
-                                    newFileLines.append(line_)
-                                else:
-                                    if line_.find(defEnder) == 0:
-                                        finished_ = True
-                                    if not finished_ and line_ != line:
-                                        newFileLines.append(line_)
-                                    if finished_:
-                                        newFileLines.append(line_)
-                            fileLines = newFileLines
+                            fileLines = removeFromFileLines(fileLines, line)
                             if line not in topLines:
                                 topLines.insert(0, line.strip())
             except ValueError:
@@ -1321,15 +1344,11 @@ class TempFile:
                         f.write('%s\n' % line)
                     f.seek(f.tell())
                     f.write('%s\n' % defEnder)
-        # update any definitions that occur after this one in the file
+        # update any definitions that occur in this file
         with open(os.path.join(TMPDIR, filename), 'r') as f:
             lineNo = 0
             for line in f:
                 lineNo += 1
-                '''
-                if lineNo < targetLineNo:
-                    continue
-                '''
                 try:
                     key, value = line.split(PRIMARY_SPLITTER, 1)
                 except ValueError:

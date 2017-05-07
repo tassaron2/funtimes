@@ -91,6 +91,7 @@ def forExitcode(predname):
 
     varsForPredname = {
                 'mainmenu' :  playerData,
+               'testentry' :  makeQuestVars('testquest'),
     'supereasyQuest1entry' :  makeQuestVars('supereasyQuest1'),
     'supereasyQuest2entry' :  makeQuestVars('supereasyQuest2'),
     'supereasyQuest3entry' :  makeQuestVars('supereasyQuest3'),

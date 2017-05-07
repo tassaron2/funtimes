@@ -83,7 +83,8 @@ prederrors = (
     "in %s,\n%s has an invalid map line:\n%s",
     # ^-- 45
     "predicament %s fell off the map\nwhile searching for a spot near %s, %s",
-    "in %s,\npredicament %s has this line:\n%s\nbut variable names must be 2 characters or greater\na 1-char name would get mixed up with the dudes!"
+    "in %s,\npredicament %s has this line:\n%s\nbut variable names must be 2 characters or greater\na 1-char name would get mixed up with the dudes!",
+    "in %s,\npredicament %s has this line:\n%s\nbut %s is not a defined dude location!",
 )
 
 class FuntimesError(Exception):

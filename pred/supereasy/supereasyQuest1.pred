@@ -7,13 +7,13 @@ predicament = supereasyQuest1entry
     sound = ~/entry.wav
     entry = %playerName%: Hmmm... Doesn't seem like much is going on here.
 
-    if Y is not 1, 4 ->
+    if Y is not 1, ~ ->
         left =
             Y = -1, ~
         /left
     /if
     # an else statement would be handy here
-    if Y is 1, 4 ->
+    if Y is 1, ~ ->
         left = seQ1-hall1
     /if
 
@@ -27,11 +27,25 @@ predicament = supereasyQuest1entry
 predicament = seQ1-hall1
     map = auto
     dude = Y -> you
-    Y = 5,4
+    Y = 7,4
     set saidmessage=0
     function = supereasyProbe
-    right = supereasyQuest1entry
-    left = seQ1-tjunc1
+    if Y is 7,~ ->
+        right = supereasyQuest1entry
+    /if
+    if Y is not 7,~ ->
+        right=
+            Y=+1,~
+        /right
+    /if
+    if Y is 1,~ ->
+        left = seQ1-tjunc1
+    /if
+    if Y is not 1,~ ->
+        left =
+            Y=-1,~
+        /left
+    /if
 /predicament
 
 predicament = seQ1-tjunc1
@@ -61,16 +75,16 @@ predicament = seQ1-tjunc1
         left = seQ1-endright1
     /if
 
-    if Y is not ~,2 ->
+    if Y is not ~,1 ->
         up =
             Y = ~,-1
         /up
     /if
-    if Y is ~,2 ->
+    if Y is ~,1 ->
         up = seQ1-vend1
     /if
 
-    if Y is not ~,5      ->
+    if Y is not ~,7 ->
         down = disable map
             Y = ~,+1
         /down
@@ -80,7 +94,7 @@ predicament = seQ1-tjunc1
 predicament = seQ1-endright1
     map = auto
     dude = Y -> you
-    Y = 5,3
+    Y = 7,3
     function = supereasyProbe
     right = seQ1-tjunc1
 /predicament
@@ -88,9 +102,9 @@ predicament = seQ1-endright1
 predicament = seQ1-vend1
     map = auto
     dude = Y -> you
-    Y = 5,3
+    Y = 3,7
     dude = F -> supereasyfileserver
-    F = 4,3
+    F = 3,3
     function = supereasyProbe
     if saidmessage is 1
         then

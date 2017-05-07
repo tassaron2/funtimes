@@ -23,6 +23,11 @@ predicament = mainmenu
     action = Jobs -> jobsmenu
     action = Projects -> projectsmenu
     action = Setup -> setupmenu
+    action = test -> gototestentry
+/predicament
+
+predicament = gototestentry
+    exit = testentry
 /predicament
 
 predicament = selfmenu
