@@ -42,12 +42,14 @@ startStats = {
     'doAttackMessageProbe' : 0,
     'playerSP'        : 0,
     'playerAttackDmg' : 6,
+    'itemKey'         : 0,
 }
 
 playerData = {
     'playerHP'        : 100,
     'playerdead'      : 0,
     'probeTick'       : 0,
+    'probeFollowing'  : 0,
 }
 
 def main(startat='mainmenu'):

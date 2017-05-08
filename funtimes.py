@@ -26,7 +26,7 @@ Does nothing to /src, just references it in replaceTilde() for game resources.
 # <http://www.gnu.org/licenses/>
 #
 #=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~#
-# last modified 2017/05/06
+# last modified 2017/05/07
 # resurrected by tassaron 2017/03/23
 # from code by ninedotnine & tassaron 2013/05/24-2013/06/30
 # inspired by a batch file game made in 2008
@@ -38,7 +38,6 @@ Does nothing to /src, just references it in replaceTilde() for game resources.
 # TODO: goto and functions can run the same code so they could be same thing?
 # TODO: markup =
 # TODO: make certain actions take more ticks to execute
-# TODO: capturing key input
 # TODO: track when virtualpreds aren't needed anymore so they can be deleted
 
 from funtoolkit import *
@@ -128,13 +127,7 @@ class Parser:
                 # should always hit error 4 before this, so it may be redundant
                 raise FuntimesError(7, self.filename, self.name)
             if not self.isFunction:
-                '''
-                self.isFunction._on_parser_finish = \
-                    list(chain(self.isFunction._on_parser_finish, self._on_parser_finish))
-                self._on_parser_finish = []
-            else:
-                '''
-                # run any functions
+                # only the real predicament calls _on_parser_finish functions
                 for func in self._on_parser_finish:
                     try:
                         func()
@@ -294,6 +287,8 @@ class Parser:
                 elif key == 'exec' and isDude:
                     readingTick = -1
                     continue
+                elif key == 'python':
+                    self._parse_python(value, readingTick)
                 elif key == 'entry' and isPredicament:
                     self._parse_text(value, True, readingTick)
                     continue
@@ -379,12 +374,12 @@ class Parser:
             elif direction == 'right':
                 def mapDrawer():
                     for i in range(3, 6):
-                        try:
-                            self.predmap[i] = '%s#' % self.predmap[i][:-1]
-                        except IndexError:
-                            print(self.name, " broke")
+                        self.predmap[i] = '%s#' % self.predmap[i][:-1]
             elif direction in ('up', 'down'):
-                magicnumber = (direction == 'down') * -1
+                if direction == 'down':
+                    magicnumber = -1
+                else:
+                    magicnumber = 0
                 def mapDrawer():
                     self.predmap[magicnumber] = DEFAULT_MAP_WALL
             return mapDrawer
@@ -433,6 +428,21 @@ class Parser:
             self.inputtype = 'exit%s' % value  #predicament
         elif readingTick > -1:
             self.addEvent(readingTick, 'exit', value)
+
+    def _parse_python(self, value, readingTick):
+        def write(line):
+            TempFile.writeLines(self, [line])
+        def getvar(key):
+            return Predicament.variables[key]
+        def setvar(key, value_):
+            if len(key)>1:
+                Predicament.variables[key] = value_
+            else:
+                self.dudeLocations[key] = value_
+        # TODO: make a context-remembering object for this
+        # so subsequent python= lines in same pred can use past
+        # lines' variables and functions.
+        exec(value.strip())
 
     @staticmethod
     def parseCoords(self, dudesymbol, line):
@@ -627,16 +637,16 @@ class Parser:
                         raise FuntimesError(48, self.filename, self.name, line, key)
                 isDude = True
                 try:
+                    if globalDude:
+                        oldLocation = Predicament.variables[key]
+                    else:
+                        oldLocation = self.dudeLocations[key]
                     value = eval(value.strip())
                 except SyntaxError:
                     if '~' not in value:
                         # non-numeric input
                         raise FuntimesError(294)
                     else:
-                        if globalDude:
-                            oldLocation = Predicament.variables[key]
-                        else:
-                            oldLocation = self.dudeLocations[key]
                         value0, value1 = value.split(',')
                         if value0.strip() == '~':
                             value = (oldLocation[0], int(value1))
@@ -1257,9 +1267,12 @@ class TempFile:
                 else:
                     if line_.find(defEnder) == 0:
                         finished_ = True
-                    if not finished_ and line_ != line:
+                    if not finished_ and line_ != line\
+                        and keyOfLine(line_, PRIMARY_SPLITTER) != 'entry':
+                        # reading the part we want to remove from!
                         newFileLines.append(line_)
                     if finished_:
+                        # afterwards...
                         newFileLines.append(line_)
             return newFileLines
 
@@ -1282,7 +1295,6 @@ class TempFile:
         # thus the topLines will provide the 1 canonical location for each dude
         dudeLocationsToWorryAbout = [l.strip()[:1] for l in topLines\
             if len(keyOfLine(l, PRIMARY_SPLITTER)) == 1]
-        #print('dudes of', self.name,':', dudeLocationsToWorryAbout)
         finished = False
         readingBlock = False
         blockStarters = ['left','right','up','down','action']

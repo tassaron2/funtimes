@@ -141,7 +141,7 @@ def writePredicament(predobj):
         else:
             blockStarter = '        %s = disable map' % direction
 
-        #negated
+        # negated
         if direction == 'left':
             write(noLeftExpr)
             write(blockStarter)

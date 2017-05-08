@@ -120,9 +120,11 @@ class Predicament:
             window.arrows.add(Funwindow.modeVars['quit'], 'quit')
         if Funwindow.modeVars['arrowsEnabled']:
             # make the arrow buttons
+            i=0
             for label, goto in self.pred.arrows:
                 # disabled directions have None as goto
-                window.arrows.add(label, goto)
+                window.arrows.add(label, goto, isArrow=i)
+                i+=1
         # make a link back to this predicament ('Wait')
         if 'wait' in Funwindow.modeVars:
             window.arrows.add(Funwindow.modeVars['wait'], self.pred.name)
@@ -441,12 +443,24 @@ class ActionButtons(Gtk.Box):
             button.set_sensitive(False)
         return button
 
-    def add(self, label, gotoPred):
+    def add(self, label, gotoPred, isArrow=None):
         button = self.makeButton(label, gotoPred)
+        if isArrow != None:
+            if isArrow == 0:  # UP
+                key = 'w'
+            elif isArrow == 1:  # DOWN
+                key = 's'
+            elif isArrow == 2:  # LEFT
+                key = 'a'
+            elif isArrow == 3:  # RIGHT
+                key = 'd'
+            bindHotkey(hotkeys, button, key)
         self.pack_start(button, False, False, 0)
 
-    def addToEnd(self, label, gotoPred):
+    def addToEnd(self, label, gotoPred, isArrow=None):
         button = self.makeButton(label, gotoPred)
+        if isArrow != None:
+            bindHotkey(hotkeys, button, '<Control>b')
         self.pack_end(button, False, False, 0)
 
 class TextBox(Gtk.Box):
@@ -552,6 +566,8 @@ class OKWindow(Gtk.Dialog):
 
 # GLOBALS
 window = Funwindow()
+hotkeys = Gtk.AccelGroup()
+window.add_accel_group(hotkeys)
 predicaments = {}
 
 def getColor(key):
@@ -559,6 +575,11 @@ def getColor(key):
         return "color='%s'" % Funwindow.color[key]
     else:
         return ''
+
+def bindHotkey(accelerators, widget, accelerator, signal='clicked'):
+    '''thanks to ThorSummoner at https://askubuntu.com/a/722649'''
+    key, mod = Gtk.accelerator_parse(accelerator)
+    widget.add_accelerator(signal, accelerators, key, mod, Gtk.AccelFlags.VISIBLE)
 
 if __name__=='__main__':
     # EXAMPLE OF HOW TO USE THIS MODULE IN OTHER SCRIPT

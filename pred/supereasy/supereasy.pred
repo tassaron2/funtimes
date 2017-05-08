@@ -90,7 +90,7 @@ predicament = supereasyProberesponse
         then probe is a sucker
         set probeFriendly to 1
     /if
-    
+
     type = goto -> %predname%
 /predicament
 

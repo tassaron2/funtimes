@@ -1,8 +1,7 @@
 version = 1
 dude = you
     tile = ~/you.png
-    if playerHP is < 5
-        then
+    if playerHP is < 5 ->
         text = WARNING: AUTO LOGOUT TRIGGERED DUE TO LOW HEALTH POINTS!
         text = YOU ARE ALMOST DEAD.
         set playerdead to 1
@@ -13,19 +12,24 @@ dude = you
         add 1 to playerDay
     /if
 
-    if doAttackMessageProbe is 1
-        then
+    if doAttackMessageProbe is 1 ->
         text = You attacked the probe! It dropped to %probeHP%HP
         set doAttackMessageProbe = 0
     /if
-    
-    if playerdead is 1
-        then
+
+    if playerdead is 1 ->
         quit
     /if
-    
-    if completedMission is 1
-        then
+
+    if completedMission is 1 ->
         action = Complete mission -> complete%currentquest%
     /if
+/dude
+
+dude = key
+    tile = ~/key.png
+/dude
+
+dude = lock
+    tile = ~/monitor.png
 /dude

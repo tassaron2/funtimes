@@ -47,7 +47,7 @@ dude = supereasyProbe
         and
     if probeAngered is 1
         then
-        subtract 8 from playerHP
+        subtract 3 from playerHP
         action = Attack the probe! -> supereasyProberesponse
         text = The probe attacks you! You're down to %playerHP%HP!
     /if
